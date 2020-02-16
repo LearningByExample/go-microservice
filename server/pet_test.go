@@ -38,8 +38,15 @@ import (
 func testRequest(handler http.Handler, url string, method string, i interface{}) *httptest.ResponseRecorder {
 	var body io.Reader = nil
 	if i != nil {
-		bytes, _ := json.Marshal(i)
-		body = strings.NewReader(string(bytes))
+		switch v := i.(type) {
+		case string:
+			body = strings.NewReader(v)
+			break
+		default:
+			bytes, _ := json.Marshal(v)
+			body = strings.NewReader(string(bytes))
+			break
+		}
 	}
 	request, _ := http.NewRequest(method, url, body)
 	response := httptest.NewRecorder()
@@ -269,11 +276,7 @@ func TestPetPostInvalidJson(t *testing.T) {
 	petStore := memory.NewInMemoryPetStore()
 	handler := NewPetHandler(petStore)
 
-	body := strings.NewReader("{")
-	request, _ := http.NewRequest(http.MethodPost, "/pet", body)
-	response := httptest.NewRecorder()
-
-	handler.ServeHTTP(response, request)
+	response := postRequest(handler, "/pet", "{")
 
 	got := response.Code
 	want := http.StatusBadRequest
@@ -358,11 +361,7 @@ func TestPetPostValidJsonNoPet(t *testing.T) {
 	petStore := memory.NewInMemoryPetStore()
 	handler := NewPetHandler(petStore)
 
-	body := strings.NewReader("{}")
-	request, _ := http.NewRequest(http.MethodPost, "/pet", body)
-	response := httptest.NewRecorder()
-
-	handler.ServeHTTP(response, request)
+	response := postRequest(handler, "/pet", "{}")
 
 	got := response.Code
 	want := http.StatusBadRequest
