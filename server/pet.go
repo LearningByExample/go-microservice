@@ -97,6 +97,8 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) int {
 					id := s.data.AddPet(pet.Name, pet.Race, pet.Mod)
 					w.Header().Set(location, fmt.Sprintf("/pet/%d", id))
 					status = http.StatusOK
+				} else {
+					status = http.StatusUnprocessableEntity
 				}
 			}
 		}
