@@ -29,8 +29,6 @@ import (
 
 func main() {
 	store := memory.NewInMemoryPetStore()
-	store.AddPet("Fluff", "dog", "happy")
-
 	srv := server.NewServer(8080, store)
 	srv.Serve()
 }
