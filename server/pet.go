@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2020 Learning by Example maintainers.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+
 package server
 
 import (
@@ -21,7 +43,8 @@ type petHandler struct {
 	methods        methodsMap
 }
 
-const contentType = "application/json; charset=utf-8"
+const contentType = "Content-Type"
+const applicationJsonUtf8 = "application/json; charset=utf-8"
 const location = "Location"
 const pathNotValid = "no valid path"
 const petIdExpr = `^\/pet\/(\d*)$`
@@ -41,18 +64,13 @@ func (s petHandler) getPetRequest(w http.ResponseWriter, r *http.Request) int {
 	status := http.StatusBadRequest
 	path := r.URL.Path
 
-	id, err := s.petID(path)
-
-	if err == nil {
-		pet, err := s.data.GetPet(id)
-
-		if err == store.PetNotFound {
+	if id, err := s.petID(path); err == nil {
+		if pet, err := s.data.GetPet(id); err == store.PetNotFound {
 			status = http.StatusNotFound
 		} else {
-			w.Header().Add("Content-Type", contentType)
+			w.Header().Add(contentType, applicationJsonUtf8)
 			encoder := json.NewEncoder(w)
-			err = encoder.Encode(pet)
-			if err == nil {
+			if err = encoder.Encode(pet); err == nil {
 				status = http.StatusOK
 			}
 		}
@@ -62,10 +80,7 @@ func (s petHandler) getPetRequest(w http.ResponseWriter, r *http.Request) int {
 }
 
 func (s petHandler) validPet(pet data.Pet) bool {
-	if pet.Name == "" || pet.Race == "" || pet.Mod == "" {
-		return false
-	}
-	return true
+	return pet.Name != "" && pet.Race != "" && pet.Mod != ""
 }
 
 func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) int {
@@ -90,7 +105,7 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) int {
 	return status
 }
 
-func (s petHandler) deletePetRequest(w http.ResponseWriter, r *http.Request) int {
+func (s petHandler) deletePetRequest(_ http.ResponseWriter, r *http.Request) int {
 	status := http.StatusBadRequest
 	path := r.URL.Path
 
@@ -115,6 +130,10 @@ func (s petHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 }
 
+func (s petHandler) addMethod(httpMethod string, handlerFunc handlerFunc) {
+	s.methods[httpMethod] = handlerFunc
+}
+
 func NewPetHandler(store store.PetStore) http.Handler {
 	ph := petHandler{
 		petIdPathReg:   regexp.MustCompile(petIdExpr),
@@ -123,9 +142,9 @@ func NewPetHandler(store store.PetStore) http.Handler {
 		methods:        make(methodsMap),
 	}
 
-	ph.methods[http.MethodGet] = ph.getPetRequest
-	ph.methods[http.MethodPost] = ph.postPetRequest
-	ph.methods[http.MethodDelete] = ph.deletePetRequest
+	ph.addMethod(http.MethodGet, ph.getPetRequest)
+	ph.addMethod(http.MethodPost, ph.postPetRequest)
+	ph.addMethod(http.MethodDelete, ph.deletePetRequest)
 
 	return ph
 }
