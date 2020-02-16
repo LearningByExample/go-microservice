@@ -35,7 +35,7 @@ import (
 	"testing"
 )
 
-func testRequest(url string, method string, i interface{}) (*http.Request, *httptest.ResponseRecorder) {
+func testRequest(handler http.Handler, url string, method string, i interface{}) *httptest.ResponseRecorder {
 	var body io.Reader = nil
 	if i != nil {
 		bytes, _ := json.Marshal(i)
@@ -44,19 +44,21 @@ func testRequest(url string, method string, i interface{}) (*http.Request, *http
 	request, _ := http.NewRequest(method, url, body)
 	response := httptest.NewRecorder()
 
-	return request, response
+	handler.ServeHTTP(response, request)
+
+	return response
 }
 
-func postRequest(url string, i interface{}) (*http.Request, *httptest.ResponseRecorder) {
-	return testRequest(url, http.MethodPost, i)
+func postRequest(handler http.Handler, url string, i interface{}) *httptest.ResponseRecorder {
+	return testRequest(handler, url, http.MethodPost, i)
 }
 
-func getRequest(url string) (*http.Request, *httptest.ResponseRecorder) {
-	return testRequest(url, http.MethodGet, nil)
+func getRequest(handler http.Handler, url string) *httptest.ResponseRecorder {
+	return testRequest(handler, url, http.MethodGet, nil)
 }
 
-func deleteRequest(url string) (*http.Request, *httptest.ResponseRecorder) {
-	return testRequest(url, http.MethodDelete, nil)
+func deleteRequest(handler http.Handler, url string) *httptest.ResponseRecorder {
+	return testRequest(handler, url, http.MethodDelete, nil)
 }
 
 type SpyStore struct {
@@ -153,9 +155,7 @@ func TestPetRequest(t *testing.T) {
 
 	handler := NewPetHandler(petStore)
 
-	request, response := getRequest("/pet/2")
-
-	handler.ServeHTTP(response, request)
+	response := getRequest(handler, "/pet/2")
 
 	got := response.Code
 	want := http.StatusOK
@@ -226,9 +226,7 @@ func TestPetResponses(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			request, response := getRequest(tt.path)
-
-			handler.ServeHTTP(response, request)
+			response := getRequest(handler, tt.path)
 
 			got := response.Code
 
@@ -243,9 +241,7 @@ func TestPetEmptyPost(t *testing.T) {
 	petStore := memory.NewInMemoryPetStore()
 	handler := NewPetHandler(petStore)
 
-	request, response := postRequest("/pet", nil)
-
-	handler.ServeHTTP(response, request)
+	response := postRequest(handler, "/pet", nil)
 
 	got := response.Code
 	want := http.StatusBadRequest
@@ -259,9 +255,7 @@ func TestPetInvalidMethod(t *testing.T) {
 	petStore := memory.NewInMemoryPetStore()
 	handler := NewPetHandler(petStore)
 
-	request, response := testRequest("/pet/1", http.MethodPatch, nil)
-
-	handler.ServeHTTP(response, request)
+	response := testRequest(handler, "/pet/1", http.MethodPatch, nil)
 
 	got := response.Code
 	want := http.StatusBadRequest
@@ -387,8 +381,7 @@ func TestPetPost(t *testing.T) {
 		Race: "cat",
 		Mod:  "brave",
 	}
-	request, response := postRequest("/pet", postPet)
-	handler.ServeHTTP(response, request)
+	response := postRequest(handler, "/pet", postPet)
 
 	got := response.Code
 	want := http.StatusOK
@@ -427,8 +420,8 @@ func TestDeletePet(t *testing.T) {
 		spyStore.whenDeletePet(func(id int) error {
 			return nil
 		})
-		request, response := deleteRequest("/pet/2")
-		handler.ServeHTTP(response, request)
+
+		response := deleteRequest(handler, "/pet/2")
 
 		got := response.Code
 		want := http.StatusOK
@@ -455,8 +448,7 @@ func TestDeletePet(t *testing.T) {
 			return store.PetNotFound
 		})
 
-		request, response := deleteRequest("/pet/2")
-		handler.ServeHTTP(response, request)
+		response := deleteRequest(handler, "/pet/2")
 
 		got := response.Code
 		want := http.StatusNotFound
