@@ -31,7 +31,7 @@ import (
 
 func TestServer(t *testing.T) {
 	store := memory.NewInMemoryPetStore()
-	store.AddPet("pelusa", "dog", "happy")
+	store.AddPet("Fluff", "dog", "happy")
 
 	handler := NewServer(8080, store).(server)
 
@@ -44,7 +44,7 @@ func TestServer(t *testing.T) {
 	var cases = []testCase{
 		{
 			name: "must return not found",
-			path: "/badurl",
+			path: "/bad-url",
 			want: http.StatusNotFound,
 		},
 		{

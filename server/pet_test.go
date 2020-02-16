@@ -25,6 +25,7 @@ package server
 import (
 	"encoding/json"
 	"github.com/LearningByExample/go-microservice/data"
+	"github.com/LearningByExample/go-microservice/store"
 	"github.com/LearningByExample/go-microservice/store/memory"
 	"io"
 	"net/http"
@@ -61,15 +62,17 @@ func deleteRequest(url string) (*http.Request, *httptest.ResponseRecorder) {
 type SpyStore struct {
 	deleteWasCall bool
 	deleteId      int
+	deleteFunc    func(id int) error
 }
 
-func NewSpyStore() SpyStore {
-	store := SpyStore{
-		deleteWasCall: false,
-		deleteId:      0,
+func (s *SpyStore) reset() {
+	s.deleteWasCall = false
+	s.deleteId = 0
+	s.deleteFunc = func(id int) error {
+		return nil
 	}
-	return store
 }
+
 func (s SpyStore) AddPet(_ string, _ string, _ string) int {
 	return 1
 }
@@ -78,14 +81,19 @@ func (s SpyStore) GetPet(_ int) (data.Pet, error) {
 	return data.Pet{}, nil
 }
 
-func (s SpyStore) DeletePet(id int) error {
+func (s *SpyStore) DeletePet(id int) error {
 	s.deleteWasCall = true
 	s.deleteId = id
-	return nil
+	return s.deleteFunc(id)
+}
+
+func (s *SpyStore) whenDeletePet(deleteFunc func(id int) error) {
+	s.deleteFunc = deleteFunc
 }
 
 func TestNewPetHandler(t *testing.T) {
-	got := NewPetHandler(memory.NewInMemoryPetStore())
+	petStore := memory.NewInMemoryPetStore()
+	got := NewPetHandler(petStore)
 
 	if got == nil {
 		t.Fatalf("want new handler, got nil")
@@ -93,7 +101,8 @@ func TestNewPetHandler(t *testing.T) {
 }
 
 func TestPetId(t *testing.T) {
-	h := NewPetHandler(memory.NewInMemoryPetStore()).(petHandler)
+	petStore := memory.NewInMemoryPetStore()
+	h := NewPetHandler(petStore).(petHandler)
 
 	type testCase struct {
 		name  string
@@ -116,7 +125,7 @@ func TestPetId(t *testing.T) {
 		},
 		{
 			name:  "must error",
-			path:  "/abcd",
+			path:  "/bad-url",
 			want:  0,
 			error: true,
 		},
@@ -138,11 +147,11 @@ func TestPetId(t *testing.T) {
 }
 
 func TestPetRequest(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	store.AddPet("pelusa", "dog", "happy")
-	store.AddPet("bola", "cat", "sad")
+	petStore := memory.NewInMemoryPetStore()
+	petStore.AddPet("Fluff", "dog", "happy")
+	petStore.AddPet("Lion", "cat", "brave")
 
-	handler := NewPetHandler(store)
+	handler := NewPetHandler(petStore)
 
 	request, response := getRequest("/pet/2")
 
@@ -163,9 +172,9 @@ func TestPetRequest(t *testing.T) {
 
 	wantPet := data.Pet{
 		Id:   2,
-		Name: "bola",
+		Name: "Lion",
 		Race: "cat",
-		Mod:  "sad",
+		Mod:  "brave",
 	}
 
 	decoder := json.NewDecoder(response.Body)
@@ -182,10 +191,10 @@ func TestPetRequest(t *testing.T) {
 }
 
 func TestPetResponses(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	store.AddPet("pelusa", "dog", "happy")
-	store.AddPet("bola", "cat", "sad")
-	handler := NewPetHandler(store)
+	petStore := memory.NewInMemoryPetStore()
+	petStore.AddPet("Fluff", "dog", "happy")
+	petStore.AddPet("Lion", "cat", "sad")
+	handler := NewPetHandler(petStore)
 
 	type testCase struct {
 		name string
@@ -210,7 +219,7 @@ func TestPetResponses(t *testing.T) {
 		},
 		{
 			name: "must error",
-			path: "/abcd",
+			path: "/bad-url",
 			want: http.StatusBadRequest,
 		},
 	}
@@ -231,8 +240,8 @@ func TestPetResponses(t *testing.T) {
 }
 
 func TestPetEmptyPost(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	handler := NewPetHandler(store)
+	petStore := memory.NewInMemoryPetStore()
+	handler := NewPetHandler(petStore)
 
 	request, response := postRequest("/pet", nil)
 
@@ -247,8 +256,8 @@ func TestPetEmptyPost(t *testing.T) {
 }
 
 func TestPetInvalidMethod(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	handler := NewPetHandler(store)
+	petStore := memory.NewInMemoryPetStore()
+	handler := NewPetHandler(petStore)
 
 	request, response := testRequest("/pet/1", http.MethodPatch, nil)
 
@@ -263,8 +272,8 @@ func TestPetInvalidMethod(t *testing.T) {
 }
 
 func TestPetPostInvalidJson(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	handler := NewPetHandler(store)
+	petStore := memory.NewInMemoryPetStore()
+	handler := NewPetHandler(petStore)
 
 	body := strings.NewReader("{")
 	request, _ := http.NewRequest(http.MethodPost, "/pet", body)
@@ -352,8 +361,8 @@ func TestValidPet(t *testing.T) {
 }
 
 func TestPetPostValidJsonNoPet(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	handler := NewPetHandler(store)
+	petStore := memory.NewInMemoryPetStore()
+	handler := NewPetHandler(petStore)
 
 	body := strings.NewReader("{}")
 	request, _ := http.NewRequest(http.MethodPost, "/pet", body)
@@ -370,11 +379,11 @@ func TestPetPostValidJsonNoPet(t *testing.T) {
 }
 
 func TestPetPost(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	handler := NewPetHandler(store)
+	petStore := memory.NewInMemoryPetStore()
+	handler := NewPetHandler(petStore)
 
 	postPet := data.Pet{
-		Name: "leon",
+		Name: "Lion",
 		Race: "cat",
 		Mod:  "brave",
 	}
@@ -395,7 +404,7 @@ func TestPetPost(t *testing.T) {
 		Mod:  postPet.Mod,
 	}
 
-	gotPet, _ := store.GetPet(1)
+	gotPet, _ := petStore.GetPet(1)
 
 	if reflect.DeepEqual(wantPet, gotPet) != true {
 		t.Fatalf("got %v, want %v", gotPet, wantPet)
@@ -410,24 +419,61 @@ func TestPetPost(t *testing.T) {
 }
 
 func TestDeletePet(t *testing.T) {
-	store := NewSpyStore()
-	handler := NewPetHandler(store)
+	spyStore := SpyStore{}
+	handler := NewPetHandler(&spyStore)
 
-	request, response := deleteRequest("/pet/2")
-	handler.ServeHTTP(response, request)
+	t.Run("we could delete a existing pet", func(t *testing.T) {
+		spyStore.reset()
+		spyStore.whenDeletePet(func(id int) error {
+			return nil
+		})
+		request, response := deleteRequest("/pet/2")
+		handler.ServeHTTP(response, request)
 
-	got := response.Code
-	want := http.StatusOK
+		got := response.Code
+		want := http.StatusOK
 
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
+		if got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 
-	if store.deleteWasCall == true {
-		t.Fatalf("delete was not called")
-	}
+		if spyStore.deleteWasCall != true {
+			t.Fatalf("delete was not called")
+		}
 
-	if store.deleteId == 2 {
-		t.Fatalf("we didn't delete the right pet")
-	}
+		gotId := spyStore.deleteId
+		wantId := 2
+
+		if gotId != wantId {
+			t.Fatalf("we didn't delete the right pet, got %v, want %v", gotId, wantId)
+		}
+	})
+
+	t.Run("we couldn't delete a non existing pet", func(t *testing.T) {
+		spyStore.reset()
+		spyStore.whenDeletePet(func(id int) error {
+			return store.PetNotFound
+		})
+
+		request, response := deleteRequest("/pet/2")
+		handler.ServeHTTP(response, request)
+
+		got := response.Code
+		want := http.StatusNotFound
+
+		if got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+
+		if spyStore.deleteWasCall != true {
+			t.Fatalf("delete was not called")
+		}
+
+		gotId := spyStore.deleteId
+		wantId := 2
+
+		if gotId != wantId {
+			t.Fatalf("we didn't delete the right pet, got %v, want %v", gotId, wantId)
+		}
+	})
 }
