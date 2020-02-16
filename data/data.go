@@ -25,10 +25,10 @@ package data
 import "fmt"
 
 type Pet struct {
-	Id   int
-	Name string
-	Race string
-	Mod  string
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+	Race string `json:"race"`
+	Mod  string `json:"mod"`
 }
 
 func (p Pet) String() string {
