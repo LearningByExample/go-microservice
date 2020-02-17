@@ -197,6 +197,33 @@ func TestPetRequest(t *testing.T) {
 	}
 }
 
+var ResponseOK = ErrorResponse{
+	ErrorStr: "",
+	status:   http.StatusOK,
+}
+
+func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, error ErrorResponse) {
+	got := response.Code
+	want := error.status
+
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	decoder := json.NewDecoder(response.Body)
+	gotErrorResponse := ErrorResponse{}
+
+	err := decoder.Decode(&gotErrorResponse)
+
+	if err != nil {
+		t.Fatalf("got error, %v", err)
+	}
+
+	if gotErrorResponse.ErrorStr != error.ErrorStr {
+		t.Fatalf("got %q, want %q", gotErrorResponse.ErrorStr, error.ErrorStr)
+	}
+}
+
 func TestPetResponses(t *testing.T) {
 	petStore := memory.NewInMemoryPetStore()
 	petStore.AddPet("Fluff", "dog", "happy")
@@ -206,28 +233,29 @@ func TestPetResponses(t *testing.T) {
 	type testCase struct {
 		name string
 		path string
-		want int
+		want ErrorResponse
 	}
+
 	var cases = []testCase{
 		{
 			name: "must found a pet",
 			path: "/pet/1",
-			want: http.StatusOK,
+			want: ResponseOK,
 		},
 		{
 			name: "must found another",
 			path: "/pet/2",
-			want: http.StatusOK,
+			want: ResponseOK,
 		},
 		{
 			name: "must not found another",
 			path: "/pet/3",
-			want: http.StatusNotFound,
+			want: ErrPetNotFound,
 		},
 		{
 			name: "must error",
 			path: "/bad-url",
-			want: http.StatusBadRequest,
+			want: ErrInvalidUrl,
 		},
 	}
 
@@ -237,8 +265,22 @@ func TestPetResponses(t *testing.T) {
 
 			got := response.Code
 
-			if got != tt.want {
-				t.Fatalf("got %v, want %v on case %v", got, tt.want, tt.name)
+			if got != tt.want.status {
+				t.Fatalf("got %v, want %v on case %v", got, tt.want.status, tt.name)
+			}
+
+			if tt.want.status != http.StatusOK {
+				decoder := json.NewDecoder(response.Body)
+				gotErrorResponse := ErrorResponse{}
+				err := decoder.Decode(&gotErrorResponse)
+
+				if err != nil {
+					t.Fatalf("got error, %v", err)
+				}
+
+				if gotErrorResponse.ErrorStr != tt.want.ErrorStr {
+					t.Fatalf("got %q, want %q on case %q", gotErrorResponse.ErrorStr, tt.want.ErrorStr, tt.name)
+				}
 			}
 		})
 	}
@@ -250,12 +292,7 @@ func TestPetEmptyPost(t *testing.T) {
 
 	response := postRequest(handler, "/pet", nil)
 
-	got := response.Code
-	want := http.StatusBadRequest
-
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
+	assertResponseError(t, response, ErrNotBodyProvided)
 }
 
 func TestPetInvalidMethod(t *testing.T) {
@@ -264,12 +301,7 @@ func TestPetInvalidMethod(t *testing.T) {
 
 	response := testRequest(handler, "/pet/1", http.MethodPatch, nil)
 
-	got := response.Code
-	want := http.StatusBadRequest
-
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
+	assertResponseError(t, response, ErrBadRequest)
 }
 
 func TestPetPostInvalidJson(t *testing.T) {
@@ -278,12 +310,7 @@ func TestPetPostInvalidJson(t *testing.T) {
 
 	response := postRequest(handler, "/pet", "{")
 
-	got := response.Code
-	want := http.StatusUnprocessableEntity
-
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
+	assertResponseError(t, response, ErrInvalidPet)
 }
 
 func TestValidPet(t *testing.T) {
@@ -363,12 +390,7 @@ func TestPetPostValidJsonNoPet(t *testing.T) {
 
 	response := postRequest(handler, "/pet", "{}")
 
-	got := response.Code
-	want := http.StatusUnprocessableEntity
-
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
+	assertResponseError(t, response, ErrInvalidPet)
 }
 
 func TestPetPost(t *testing.T) {
@@ -449,12 +471,7 @@ func TestDeletePet(t *testing.T) {
 
 		response := deleteRequest(handler, "/pet/2")
 
-		got := response.Code
-		want := http.StatusNotFound
-
-		if got != want {
-			t.Fatalf("got %v, want %v", got, want)
-		}
+		assertResponseError(t, response, ErrPetNotFound)
 
 		if spyStore.deleteWasCall != true {
 			t.Fatalf("delete was not called")

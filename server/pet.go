@@ -54,6 +54,7 @@ const writtenJson = "written json"
 const invalidUrl = "invalid url"
 const notBodyProvided = "not body provided"
 const invalidPet = "invalid pet"
+const badRequest = "bad request"
 
 var ErrPathNotValid = errors.New(pathNotValid)
 
@@ -81,6 +82,10 @@ var ErrInvalidPet = ErrorResponse{
 }
 var ErrNotBodyProvided = ErrorResponse{
 	ErrorStr: notBodyProvided,
+	status:   http.StatusBadRequest,
+}
+var ErrBadRequest = ErrorResponse{
+	ErrorStr: badRequest,
 	status:   http.StatusBadRequest,
 }
 
@@ -172,7 +177,9 @@ func (s petHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(ErrBadRequest.status)
+		encoder := json.NewEncoder(w)
+		_ = encoder.Encode(ErrBadRequest)
 	}
 }
 
