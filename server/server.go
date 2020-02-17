@@ -62,6 +62,7 @@ func NewServer(port int, store store.PetStore) Server {
 	}
 
 	mux.HandleFunc("/", srv.notFound)
+	mux.Handle("/pet", NewPetHandler(store))
 	mux.Handle("/pet/", NewPetHandler(store))
 
 	return srv

@@ -48,7 +48,7 @@ const applicationJsonUtf8 = "application/json; charset=utf-8"
 const location = "Location"
 const pathNotValid = "no valid path"
 const petIdExpr = `^\/pet\/(\d*)$`
-const petNotIdExpr = `^\/pet\/?`
+const petNotIdExpr = `^\/pet$`
 
 var ErrPathNotValid = errors.New(pathNotValid)
 
