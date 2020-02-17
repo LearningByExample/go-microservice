@@ -279,7 +279,7 @@ func TestPetPostInvalidJson(t *testing.T) {
 	response := postRequest(handler, "/pet", "{")
 
 	got := response.Code
-	want := http.StatusBadRequest
+	want := http.StatusUnprocessableEntity
 
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
