@@ -26,7 +26,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/LearningByExample/go-microservice/constants"
 	"github.com/LearningByExample/go-microservice/data"
+	"github.com/LearningByExample/go-microservice/resperr"
 	"github.com/LearningByExample/go-microservice/store"
 	"net/http"
 	"regexp"
@@ -43,51 +45,11 @@ type petHandler struct {
 	methods        methodsMap
 }
 
-const contentType = "Content-Type"
-const applicationJsonUtf8 = "application/json; charset=utf-8"
-const location = "Location"
-const pathNotValid = "no valid path"
 const petIdExpr = `^\/pet\/(\d*)$`
 const petNotIdExpr = `^\/pet$`
-const petNotFound = "pet not found"
-const writtenJson = "written json"
-const invalidUrl = "invalid url"
-const notBodyProvided = "not body provided"
-const invalidPet = "invalid pet"
-const badRequest = "bad request"
+const pathNotValid = "no valid path"
 
 var ErrPathNotValid = errors.New(pathNotValid)
-
-type ErrorResponse struct {
-	error
-	ErrorStr string `json:"error"`
-	status   int
-}
-
-var ErrPetNotFound = ErrorResponse{
-	ErrorStr: petNotFound,
-	status:   http.StatusNotFound,
-}
-var ErrWrittenJson = ErrorResponse{
-	ErrorStr: writtenJson,
-	status:   http.StatusInternalServerError,
-}
-var ErrInvalidUrl = ErrorResponse{
-	ErrorStr: invalidUrl,
-	status:   http.StatusBadRequest,
-}
-var ErrInvalidPet = ErrorResponse{
-	ErrorStr: invalidPet,
-	status:   http.StatusUnprocessableEntity,
-}
-var ErrNotBodyProvided = ErrorResponse{
-	ErrorStr: notBodyProvided,
-	status:   http.StatusBadRequest,
-}
-var ErrBadRequest = ErrorResponse{
-	ErrorStr: badRequest,
-	status:   http.StatusBadRequest,
-}
 
 func (s petHandler) petID(path string) (int, error) {
 	matches := s.petIdPathReg.FindStringSubmatch(path)
@@ -101,17 +63,18 @@ func (s petHandler) getPetRequest(w http.ResponseWriter, r *http.Request) error 
 	path := r.URL.Path
 	if id, err := s.petID(path); err == nil {
 		if pet, err := s.data.GetPet(id); err == store.PetNotFound {
-			return ErrPetNotFound
+			return resperr.NotFound
 		} else {
+			w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
 			w.WriteHeader(http.StatusOK)
 			encoder := json.NewEncoder(w)
 			if err = encoder.Encode(pet); err != nil {
-				return ErrWrittenJson
+				return resperr.WrittenJson
 			}
 			return nil
 		}
 	} else {
-		return ErrInvalidUrl
+		return resperr.InvalidUrl
 	}
 }
 
@@ -129,20 +92,21 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error
 			if err := decoder.Decode(&pet); err == nil {
 				if s.validPet(pet) {
 					id := s.data.AddPet(pet.Name, pet.Race, pet.Mod)
-					w.Header().Set(location, fmt.Sprintf("/pet/%d", id))
+					w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
+					w.Header().Set(constants.Location, fmt.Sprintf("/pet/%d", id))
 					w.WriteHeader(http.StatusOK)
 					return nil
 				} else {
-					return ErrInvalidPet
+					return resperr.InvalidResource
 				}
 			} else {
-				return ErrInvalidPet
+				return resperr.InvalidResource
 			}
 		} else {
-			return ErrNotBodyProvided
+			return resperr.NotBodyProvided
 		}
 	} else {
-		return ErrInvalidUrl
+		return resperr.InvalidUrl
 	}
 }
 
@@ -151,35 +115,30 @@ func (s petHandler) deletePetRequest(w http.ResponseWriter, r *http.Request) err
 
 	if id, err := s.petID(path); err == nil {
 		if err := s.data.DeletePet(id); err == store.PetNotFound {
-			return ErrPetNotFound
+			return resperr.NotFound
 		} else {
+			w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
 			w.WriteHeader(http.StatusOK)
 			return nil
 		}
 	} else {
-		return ErrInvalidPet
+		return resperr.InvalidResource
 	}
 }
 
 func (s petHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add(contentType, applicationJsonUtf8)
+	var rErr = resperr.None
+
 	if method, found := s.methods[r.Method]; found {
 		if err := method(w, r); err != nil {
-			encoder := json.NewEncoder(w)
-			switch v := err.(type) {
-			case ErrorResponse:
-				w.WriteHeader(v.status)
-				_ = encoder.Encode(err)
-			default:
-				w.WriteHeader(http.StatusInternalServerError)
-				desc := ErrorResponse{ErrorStr: err.Error(),}
-				_ = encoder.Encode(desc)
-			}
+			rErr = resperr.FromError(err)
 		}
 	} else {
-		w.WriteHeader(ErrBadRequest.status)
-		encoder := json.NewEncoder(w)
-		_ = encoder.Encode(ErrBadRequest)
+		rErr = resperr.BadRequest
+	}
+
+	if rErr != resperr.None {
+		rErr.Write(w)
 	}
 }
 

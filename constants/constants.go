@@ -20,51 +20,8 @@
  *  THE SOFTWARE.
  */
 
-package server
+package constants
 
-import (
-	"fmt"
-	"github.com/LearningByExample/go-microservice/resperr"
-	"github.com/LearningByExample/go-microservice/store"
-	"log"
-	"net/http"
-)
-
-type Server interface {
-	Serve()
-}
-
-type server struct {
-	port int
-	mux  *http.ServeMux
-}
-
-func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
-}
-
-func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
-	resperr.NotFound.Write(w)
-}
-
-func (s server) Serve() {
-	addr := fmt.Sprintf(":%d", s.port)
-	log.Printf("Starting server at %s", addr)
-
-	_ = http.ListenAndServe(addr, s)
-}
-
-func NewServer(port int, store store.PetStore) Server {
-	mux := http.NewServeMux()
-
-	srv := server{
-		port: port,
-		mux:  mux,
-	}
-
-	mux.HandleFunc("/", srv.notFound)
-	mux.Handle("/pet", NewPetHandler(store))
-	mux.Handle("/pet/", NewPetHandler(store))
-
-	return srv
-}
+const ContentType = "Content-Type"
+const ApplicationJsonUtf8 = "application/json; charset=utf-8"
+const Location = "Location"
