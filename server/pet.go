@@ -45,11 +45,15 @@ type petHandler struct {
 	methods        methodsMap
 }
 
-const petIdExpr = `^\/pet\/(\d*)$`
-const petNotIdExpr = `^\/pet$`
-const pathNotValid = "no valid path"
+const (
+	petIdExpr    = `^\/pet\/(\d*)$`
+	petNotIdExpr = `^\/pet$`
+	pathNotValid = "no valid path"
+)
 
-var ErrPathNotValid = errors.New(pathNotValid)
+var (
+	ErrPathNotValid = errors.New(pathNotValid)
+)
 
 func (s petHandler) petID(path string) (int, error) {
 	matches := s.petIdPathReg.FindStringSubmatch(path)
@@ -60,8 +64,7 @@ func (s petHandler) petID(path string) (int, error) {
 }
 
 func (s petHandler) getPetRequest(w http.ResponseWriter, r *http.Request) error {
-	path := r.URL.Path
-	if id, err := s.petID(path); err == nil {
+	if id, err := s.petID(r.URL.Path); err == nil {
 		if pet, err := s.data.GetPet(id); err == store.PetNotFound {
 			return resperr.NotFound
 		} else {
@@ -83,9 +86,7 @@ func (s petHandler) validPet(pet data.Pet) bool {
 }
 
 func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error {
-	path := r.URL.Path
-
-	if s.petNoIdPathReg.MatchString(path) {
+	if s.petNoIdPathReg.MatchString(r.URL.Path) {
 		if r.Body != nil {
 			decoder := json.NewDecoder(r.Body)
 			pet := data.Pet{}
@@ -111,9 +112,7 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error
 }
 
 func (s petHandler) deletePetRequest(w http.ResponseWriter, r *http.Request) error {
-	path := r.URL.Path
-
-	if id, err := s.petID(path); err == nil {
+	if id, err := s.petID(r.URL.Path); err == nil {
 		if err := s.data.DeletePet(id); err == store.PetNotFound {
 			return resperr.NotFound
 		} else {

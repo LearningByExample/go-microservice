@@ -22,6 +22,8 @@
 
 package constants
 
-const ContentType = "Content-Type"
-const ApplicationJsonUtf8 = "application/json; charset=utf-8"
-const Location = "Location"
+const (
+	ContentType         = "Content-Type"
+	ApplicationJsonUtf8 = "application/json; charset=utf-8"
+	Location            = "Location"
+)

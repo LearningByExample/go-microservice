@@ -29,12 +29,14 @@ import (
 	"net/http"
 )
 
-const writtenJson = "written json"
-const invalidUrl = "invalid url"
-const notBodyProvided = "not body provided"
-const invalidResource = "invalid resource"
-const badRequest = "bad request"
-const resourceNotFound = "resource not found"
+const (
+	writtenJson      = "written json"
+	invalidUrl       = "invalid url"
+	notBodyProvided  = "not body provided"
+	invalidResource  = "invalid resource"
+	badRequest       = "bad request"
+	resourceNotFound = "resource not found"
+)
 
 type ResponseError struct {
 	error
