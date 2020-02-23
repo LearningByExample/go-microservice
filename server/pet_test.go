@@ -24,17 +24,18 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/LearningByExample/go-microservice/constants"
-	"github.com/LearningByExample/go-microservice/data"
-	"github.com/LearningByExample/go-microservice/resperr"
-	"github.com/LearningByExample/go-microservice/store"
-	"github.com/LearningByExample/go-microservice/store/memory"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/LearningByExample/go-microservice/constants"
+	"github.com/LearningByExample/go-microservice/data"
+	"github.com/LearningByExample/go-microservice/resperr"
+	"github.com/LearningByExample/go-microservice/store"
+	"github.com/LearningByExample/go-microservice/store/memory"
 )
 
 func testRequest(handler http.Handler, url string, method string, i interface{}) *httptest.ResponseRecorder {
@@ -165,41 +166,14 @@ func TestPetRequest(t *testing.T) {
 	handler := NewPetHandler(petStore)
 
 	response := getRequest(handler, "/pet/2")
+	wantPet, _ := petStore.GetPet(1)
 
-	got := response.Code
-	want := http.StatusOK
-	if got != want {
-		t.Fatalf("error got %v, want %v", got, want)
-	}
-
-	gotHeader := response.Header().Get(constants.ContentType)
-	wantHeader := constants.ApplicationJsonUtf8
-
-	if gotHeader != wantHeader {
-		t.Fatalf("error got %q, want %q", gotHeader, wantHeader)
-	}
-
-	wantPet := data.Pet{
-		Id:   2,
-		Name: "Lion",
-		Race: "cat",
-		Mod:  "brave",
-	}
-
-	decoder := json.NewDecoder(response.Body)
-	gotPet := data.Pet{}
-	err := decoder.Decode(&gotPet)
-
-	if err != nil {
-		t.Fatalf("got error, %v", err)
-	}
-
-	if reflect.DeepEqual(gotPet, wantPet) != true {
-		t.Fatalf("got %v, want %v", gotPet, wantPet)
-	}
+	assertPetResponseEquals(t, response, wantPet)
 }
 
 func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, error resperr.ResponseError) {
+	t.Helper()
+
 	got := response.Code
 	want := error.Status()
 
@@ -220,6 +194,36 @@ func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, erro
 		if gotErrorResponse.ErrorStr != error.ErrorStr {
 			t.Fatalf("got %q, want %q", gotErrorResponse.ErrorStr, error.ErrorStr)
 		}
+	}
+}
+
+func assertPetResponseEquals(t *testing.T, response *httptest.ResponseRecorder, pet data.Pet) {
+	t.Helper()
+
+	got := response.Code
+	want := http.StatusOK
+
+	if got != want {
+		t.Fatalf("error got %v, want %v", got, want)
+	}
+
+	gotHeader := response.Header().Get(constants.ContentType)
+	wantHeader := constants.ApplicationJsonUtf8
+
+	if gotHeader != wantHeader {
+		t.Fatalf("error got %q, want %q", gotHeader, wantHeader)
+	}
+
+	decoder := json.NewDecoder(response.Body)
+	gotPet := data.Pet{}
+	err := decoder.Decode(&gotPet)
+
+	if err != nil {
+		t.Fatalf("got error, %v", err)
+	}
+
+	if reflect.DeepEqual(gotPet, pet) != true {
+		t.Fatalf("got %v, want %v", gotPet, pet)
 	}
 }
 
