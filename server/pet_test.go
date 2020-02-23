@@ -104,8 +104,8 @@ func (s *SpyStore) whenDeletePet(deleteFunc func(id int) error) {
 }
 
 func TestNewPetHandler(t *testing.T) {
-	petStore := memory.NewInMemoryPetStore()
-	got := NewPetHandler(petStore)
+	spyStore := SpyStore{}
+	got := NewPetHandler(&spyStore)
 
 	if got == nil {
 		t.Fatalf("want new handler, got nil")
