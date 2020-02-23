@@ -166,7 +166,7 @@ func TestGetPetRequest(t *testing.T) {
 	handler := NewPetHandler(petStore)
 
 	response := getRequest(handler, "/pet/2")
-	wantPet, _ := petStore.GetPet(1)
+	wantPet, _ := petStore.GetPet(2)
 
 	assertPetResponseEquals(t, response, wantPet)
 }
