@@ -113,8 +113,8 @@ func TestNewPetHandler(t *testing.T) {
 }
 
 func TestPetId(t *testing.T) {
-	petStore := memory.NewInMemoryPetStore()
-	h := NewPetHandler(petStore).(petHandler)
+	spyStore := SpyStore{}
+	h := NewPetHandler(&spyStore).(petHandler)
 
 	type testCase struct {
 		name  string
