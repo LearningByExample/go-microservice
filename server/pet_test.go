@@ -158,7 +158,7 @@ func TestPetId(t *testing.T) {
 	}
 }
 
-func TestPetRequest(t *testing.T) {
+func TestGetPetRequest(t *testing.T) {
 	petStore := memory.NewInMemoryPetStore()
 	petStore.AddPet("Fluff", "dog", "happy")
 	petStore.AddPet("Lion", "cat", "brave")
