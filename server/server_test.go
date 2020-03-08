@@ -23,17 +23,16 @@
 package server
 
 import (
-	"github.com/LearningByExample/go-microservice/store/memory"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/LearningByExample/go-microservice/test"
 )
 
 func TestServer(t *testing.T) {
-	store := memory.NewInMemoryPetStore()
-	store.AddPet("Fluff", "dog", "happy")
+	store := test.NewSpyStore()
 
-	handler := NewServer(8080, store).(server)
+	handler := NewServer(8080, &store).(server)
 
 	type testCase struct {
 		name string
@@ -56,11 +55,7 @@ func TestServer(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			request, _ := http.NewRequest(http.MethodGet, tt.path, nil)
-			response := httptest.NewRecorder()
-
-			handler.ServeHTTP(response, request)
-
+			response := test.GetRequest(handler, tt.path)
 			got := response.Code
 
 			if got != tt.want {
