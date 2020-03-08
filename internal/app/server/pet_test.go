@@ -385,8 +385,8 @@ func TestPetPost(t *testing.T) {
 		Mod:  postPet.Mod,
 	}
 
-	if reflect.DeepEqual(wantPet, spyStore.AddParameters) != true {
-		t.Fatalf("got %v, want %v", spyStore.AddParameters, wantPet)
+	if reflect.DeepEqual(wantPet, spyStore.PetParameters) != true {
+		t.Fatalf("got %v, want %v", spyStore.PetParameters, wantPet)
 	}
 
 	gotLocation := response.Header().Get(constants.Location)
@@ -442,4 +442,144 @@ func TestDeletePet(t *testing.T) {
 			t.Fatalf("we didn't delete the right pet, got %v, want %v", gotId, wantId)
 		}
 	})
+}
+
+func TestPetPut(t *testing.T) {
+	spyStore := test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	putPet := data.Pet{
+		Name: "Lion",
+		Race: "cat",
+		Mod:  "coward",
+	}
+
+	type Want struct {
+		id          int
+		status      int
+		storeCalled bool
+	}
+
+	type TestCase struct {
+		name   string
+		url    string
+		pet    data.Pet
+		update bool
+		err    error
+		want   Want
+	}
+
+	var cases = []TestCase{
+		{
+			name: "modify a pet",
+			url:  "/pet/1",
+			pet: data.Pet{
+				Name: "Lion",
+				Race: "cat",
+				Mod:  "coward",
+			},
+			update: true,
+			err:    nil,
+			want: Want{
+				id:          1,
+				status:      http.StatusOK,
+				storeCalled: true,
+			},
+		},
+		{
+			name: "not modify a pet",
+			url:  "/pet/1",
+			pet: data.Pet{
+				Name: "Lion",
+				Race: "cat",
+				Mod:  "coward",
+			},
+			update: false,
+			err:    nil,
+			want: Want{
+				id:          1,
+				status:      http.StatusNotModified,
+				storeCalled: true,
+			},
+		},
+		{
+			name: "pet not found",
+			url:  "/pet/1",
+			pet: data.Pet{
+				Name: "Lion",
+				Race: "cat",
+				Mod:  "coward",
+			},
+			update: true,
+			err:    store.PetNotFound,
+			want: Want{
+				id:          1,
+				status:      http.StatusNotFound,
+				storeCalled: true,
+			},
+		},
+		{
+			name: "bad pet",
+			url:  "/pet/1",
+			pet: data.Pet{
+				Name: "",
+				Race: "cat",
+				Mod:  "coward",
+			},
+			update: true,
+			err:    nil,
+			want: Want{
+				id:          1,
+				status:      http.StatusUnprocessableEntity,
+				storeCalled: false,
+			},
+		},
+		{
+			name:   "bad url",
+			url:    "/pet/zz",
+			pet:    data.Pet{},
+			update: true,
+			err:    nil,
+			want: Want{
+				id:          1,
+				status:      http.StatusBadRequest,
+				storeCalled: false,
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			spyStore.Reset()
+			spyStore.WhenUpdatePet(func(id int, pet data.Pet) (b bool, err error) {
+				return tt.update, tt.err
+			})
+
+			response := test.PutRequest(handler, tt.url, tt.pet)
+
+			got := response.Code
+
+			if got != tt.want.status {
+				t.Fatalf("got %v, want %v", got, tt.want.status)
+			}
+
+			if spyStore.UpdateWasCall != tt.want.storeCalled {
+				t.Fatalf("want store call %v, got %v", tt.want.storeCalled, spyStore.UpdateWasCall)
+			}
+
+			if tt.want.storeCalled {
+				gotId := spyStore.Id
+				wantId := tt.want.id
+
+				if gotId != wantId {
+					t.Fatalf("we didn't update the right pet, got %v, want %v", gotId, wantId)
+				}
+
+				gotPet := spyStore.PetParameters
+				if reflect.DeepEqual(gotPet, putPet) != true {
+					t.Fatalf("got %v, want %v", gotPet, putPet)
+				}
+			}
+		})
+	}
 }

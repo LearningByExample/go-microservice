@@ -34,3 +34,7 @@ type Pet struct {
 func (p Pet) String() string {
 	return fmt.Sprintf("{ Id: %d, Name: %q, Race: %q, Mod: %q }", p.Id, p.Name, p.Race, p.Mod)
 }
+
+func (p Pet) EqualsWithNotId(o Pet) bool {
+	return p.Name == o.Name && p.Mod == o.Mod && p.Race == o.Race
+}

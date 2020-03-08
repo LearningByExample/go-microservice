@@ -60,6 +60,24 @@ func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
 	return value, err
 }
 
+func (s *inMemoryPetStore) UpdatePet(id int, pet data.Pet) (bool, error) {
+	var change = false
+	found, err := s.GetPet(id)
+
+	if err == nil {
+		change = !found.EqualsWithNotId(pet)
+		if change {
+			found.Name = pet.Name
+			found.Race = pet.Race
+			found.Mod = pet.Mod
+
+			s.pets[id] = found
+		}
+	}
+
+	return change, err
+}
+
 func NewInMemoryPetStore() store.PetStore {
 	var petStore = inMemoryPetStore{
 		pets:   make(PetMap),

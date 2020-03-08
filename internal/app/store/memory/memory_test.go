@@ -116,3 +116,61 @@ func TestDeletePet(t *testing.T) {
 		}
 	})
 }
+
+func TestUpdatePet(t *testing.T) {
+	ps := NewInMemoryPetStore()
+
+	ps.AddPet("Fluffy", "dog", "happy")
+
+	type TestCase struct {
+		name   string
+		id     int
+		pet    data.Pet
+		change bool
+		err    error
+	}
+
+	var cases = []TestCase{
+		{
+			name: "no change pet",
+			id:   1,
+			pet: data.Pet{
+				Name: "Fluffy",
+				Race: "dog",
+				Mod:  "happy",
+			},
+			change: false,
+			err:    nil,
+		},
+		{
+			name: "change pet",
+			id:   1,
+			pet: data.Pet{
+				Name: "a",
+				Race: "b",
+				Mod:  "c",
+			},
+			change: true,
+			err:    nil,
+		},
+		{
+			name:   "change not found pet",
+			id:     2,
+			pet:    data.Pet{},
+			change: false,
+			err:    store.PetNotFound,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ps.UpdatePet(tt.id, tt.pet)
+			if got != tt.change {
+				t.Fatalf("want %v, got %v", tt.change, got)
+			}
+			if err != tt.err {
+				t.Fatalf("want err %q, got %q", tt.err, err)
+			}
+		})
+	}
+}

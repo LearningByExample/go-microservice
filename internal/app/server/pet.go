@@ -125,6 +125,39 @@ func (s petHandler) deletePetRequest(w http.ResponseWriter, r *http.Request) err
 	}
 }
 
+func (s petHandler) putPetRequest(w http.ResponseWriter, r *http.Request) error {
+	change := false
+	if id, err := s.petID(r.URL.Path); err == nil {
+		if r.Body != nil {
+			decoder := json.NewDecoder(r.Body)
+			pet := data.Pet{}
+			if err := decoder.Decode(&pet); err == nil {
+				if s.validPet(pet) {
+					if change, err = s.data.UpdatePet(id, pet); err != nil {
+						return resperr.NotFound
+					} else {
+						w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
+						if change {
+							w.WriteHeader(http.StatusOK)
+						} else {
+							w.WriteHeader(http.StatusNotModified)
+						}
+					}
+					return nil
+				} else {
+					return resperr.InvalidResource
+				}
+			} else {
+				return resperr.InvalidResource
+			}
+		} else {
+			return resperr.NotBodyProvided
+		}
+	} else {
+		return resperr.InvalidUrl
+	}
+}
+
 func (s petHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var rErr = resperr.None
 
@@ -156,6 +189,7 @@ func NewPetHandler(store store.PetStore) http.Handler {
 	ph.addMethod(http.MethodGet, ph.getPetRequest)
 	ph.addMethod(http.MethodPost, ph.postPetRequest)
 	ph.addMethod(http.MethodDelete, ph.deletePetRequest)
+	ph.addMethod(http.MethodPut, ph.putPetRequest)
 
 	return ph
 }

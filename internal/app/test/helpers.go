@@ -66,3 +66,7 @@ func DeleteRequest(handler http.Handler, url string) *httptest.ResponseRecorder 
 func PatchRequest(handler http.Handler, url string, i interface{}) *httptest.ResponseRecorder {
 	return testRequest(handler, url, http.MethodPatch, i)
 }
+
+func PutRequest(handler http.Handler, url string, i interface{}) *httptest.ResponseRecorder {
+	return testRequest(handler, url, http.MethodPut, i)
+}

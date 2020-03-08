@@ -28,19 +28,22 @@ type SpyStore struct {
 	DeleteWasCall bool
 	GetWasCall    bool
 	AddWasCall    bool
+	UpdateWasCall bool
 	Id            int
-	AddParameters data.Pet
+	PetParameters data.Pet
 	deleteFunc    func(id int) error
 	getFunc       func(id int) (data.Pet, error)
 	addFunc       func(name string, race string, mod string) int
+	updateFunc    func(id int, pet data.Pet) (bool, error)
 }
 
 func (s *SpyStore) Reset() {
 	s.DeleteWasCall = false
 	s.GetWasCall = false
 	s.AddWasCall = false
+	s.UpdateWasCall = false
 	s.Id = 0
-	s.AddParameters = data.Pet{
+	s.PetParameters = data.Pet{
 		Id:   0,
 		Name: "",
 		Race: "",
@@ -55,15 +58,18 @@ func (s *SpyStore) Reset() {
 	s.addFunc = func(name string, race string, mod string) int {
 		return 0
 	}
+	s.updateFunc = func(id int, pet data.Pet) (b bool, err error) {
+		return false, nil
+	}
 }
 
 func (s *SpyStore) AddPet(name string, race string, mod string) int {
 	s.AddWasCall = true
-	s.AddParameters.Name = name
-	s.AddParameters.Race = race
-	s.AddParameters.Mod = mod
-	s.AddParameters.Id = s.addFunc(name, race, mod)
-	return s.AddParameters.Id
+	s.PetParameters.Name = name
+	s.PetParameters.Race = race
+	s.PetParameters.Mod = mod
+	s.PetParameters.Id = s.addFunc(name, race, mod)
+	return s.PetParameters.Id
 }
 
 func (s *SpyStore) GetPet(id int) (data.Pet, error) {
@@ -78,6 +84,13 @@ func (s *SpyStore) DeletePet(id int) error {
 	return s.deleteFunc(id)
 }
 
+func (s *SpyStore) UpdatePet(id int, pet data.Pet) (bool, error) {
+	s.UpdateWasCall = true
+	s.Id = id
+	s.PetParameters = pet
+	return s.updateFunc(id, pet)
+}
+
 func (s *SpyStore) WhenDeletePet(deleteFunc func(id int) error) {
 	s.deleteFunc = deleteFunc
 }
@@ -88,6 +101,10 @@ func (s *SpyStore) WhenGetPet(getFunc func(id int) (data.Pet, error)) {
 
 func (s *SpyStore) WhenAddPet(addFunc func(name string, race string, mod string) int) {
 	s.addFunc = addFunc
+}
+
+func (s *SpyStore) WhenUpdatePet(updateFunc func(id int, pet data.Pet) (bool, error)) {
+	s.updateFunc = updateFunc
 }
 
 func NewSpyStore() SpyStore {
