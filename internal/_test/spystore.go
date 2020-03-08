@@ -34,7 +34,7 @@ type SpyStore struct {
 	deleteFunc    func(id int) error
 	getFunc       func(id int) (data.Pet, error)
 	addFunc       func(name string, race string, mod string) int
-	updateFunc    func(id int, pet data.Pet) (bool, error)
+	updateFunc    func(id int, name string, race string, mod string) (bool, error)
 }
 
 func (s *SpyStore) Reset() {
@@ -58,7 +58,7 @@ func (s *SpyStore) Reset() {
 	s.addFunc = func(name string, race string, mod string) int {
 		return 0
 	}
-	s.updateFunc = func(id int, pet data.Pet) (b bool, err error) {
+	s.updateFunc = func(id int, name string, race string, mod string) (b bool, err error) {
 		return false, nil
 	}
 }
@@ -84,11 +84,15 @@ func (s *SpyStore) DeletePet(id int) error {
 	return s.deleteFunc(id)
 }
 
-func (s *SpyStore) UpdatePet(id int, pet data.Pet) (bool, error) {
+func (s *SpyStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
 	s.UpdateWasCall = true
 	s.Id = id
-	s.PetParameters = pet
-	return s.updateFunc(id, pet)
+	s.PetParameters = data.Pet{
+		Name: name,
+		Race: race,
+		Mod:  mod,
+	}
+	return s.updateFunc(id, name, race, mod)
 }
 
 func (s *SpyStore) WhenDeletePet(deleteFunc func(id int) error) {
@@ -103,7 +107,7 @@ func (s *SpyStore) WhenAddPet(addFunc func(name string, race string, mod string)
 	s.addFunc = addFunc
 }
 
-func (s *SpyStore) WhenUpdatePet(updateFunc func(id int, pet data.Pet) (bool, error)) {
+func (s *SpyStore) WhenUpdatePet(updateFunc func(id int, name string, race string, mod string) (bool, error)) {
 	s.updateFunc = updateFunc
 }
 

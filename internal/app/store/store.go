@@ -31,7 +31,7 @@ type PetStore interface {
 	AddPet(name string, race string, mod string) int
 	GetPet(id int) (data.Pet, error)
 	DeletePet(id int) error
-	UpdatePet(id int, pet data.Pet) (bool, error)
+	UpdatePet(id int, name string, race string, mod string) (bool, error)
 }
 
 var PetNotFound = errors.New("can not find pet")

@@ -133,7 +133,7 @@ func (s petHandler) putPetRequest(w http.ResponseWriter, r *http.Request) error 
 			pet := data.Pet{}
 			if err := decoder.Decode(&pet); err == nil {
 				if s.validPet(pet) {
-					if change, err = s.data.UpdatePet(id, pet); err != nil {
+					if change, err = s.data.UpdatePet(id, pet.Name, pet.Race, pet.Mod); err != nil {
 						return resperr.NotFound
 					} else {
 						w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)

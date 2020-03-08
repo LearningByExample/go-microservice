@@ -60,16 +60,20 @@ func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
 	return value, err
 }
 
-func (s *inMemoryPetStore) UpdatePet(id int, pet data.Pet) (bool, error) {
+func petEquals(p data.Pet, name string, race string, mod string) bool {
+	return p.Name == name && p.Race == race && p.Mod == mod
+}
+
+func (s *inMemoryPetStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
 	var change = false
 	found, err := s.GetPet(id)
 
 	if err == nil {
-		change = !found.EqualsWithNotId(pet)
+		change = !petEquals(found, name, race, mod)
 		if change {
-			found.Name = pet.Name
-			found.Race = pet.Race
-			found.Mod = pet.Mod
+			found.Name = name
+			found.Race = race
+			found.Mod = mod
 
 			s.pets[id] = found
 		}
