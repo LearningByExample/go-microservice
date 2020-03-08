@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-package test
+package _test
 
 import "github.com/LearningByExample/go-microservice/internal/app/data"
 

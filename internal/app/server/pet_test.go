@@ -29,15 +29,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/LearningByExample/go-microservice/internal/_test"
 	"github.com/LearningByExample/go-microservice/internal/app/constants"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
-	"github.com/LearningByExample/go-microservice/internal/app/test"
 )
 
 func TestNewPetHandler(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	got := NewPetHandler(&spyStore)
 
 	if got == nil {
@@ -46,7 +46,7 @@ func TestNewPetHandler(t *testing.T) {
 }
 
 func TestPetId(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	h := NewPetHandler(&spyStore).(petHandler)
 
 	type testCase struct {
@@ -92,7 +92,7 @@ func TestPetId(t *testing.T) {
 }
 
 func TestGetPetRequest(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
 	mockPet := data.Pet{
@@ -105,7 +105,7 @@ func TestGetPetRequest(t *testing.T) {
 	spyStore.WhenGetPet(func(id int) (data.Pet, error) {
 		return mockPet, nil
 	})
-	response := test.GetRequest(handler, "/pet/2")
+	response := _test.GetRequest(handler, "/pet/2")
 
 	assertPetResponseEquals(t, response, mockPet)
 
@@ -178,7 +178,7 @@ func assertPetResponseEquals(t *testing.T, response *httptest.ResponseRecorder, 
 }
 
 func TestPetResponses(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
 	type testCase struct {
@@ -235,7 +235,7 @@ func TestPetResponses(t *testing.T) {
 			spyStore.Reset()
 			spyStore.WhenGetPet(funcGet)
 
-			response := test.GetRequest(handler, tt.path)
+			response := _test.GetRequest(handler, tt.path)
 			assertResponseError(t, response, tt.want)
 
 			if spyStore.GetWasCall != tt.getShouldBeCalled {
@@ -250,26 +250,26 @@ func TestPetResponses(t *testing.T) {
 }
 
 func TestPetEmptyPost(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := test.PostRequest(handler, "/pet", nil)
+	response := _test.PostRequest(handler, "/pet", nil)
 	assertResponseError(t, response, resperr.NotBodyProvided)
 }
 
 func TestPetInvalidMethod(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := test.PatchRequest(handler, "/pet/1", nil)
+	response := _test.PatchRequest(handler, "/pet/1", nil)
 	assertResponseError(t, response, resperr.BadRequest)
 }
 
 func TestPetPostInvalidJson(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := test.PostRequest(handler, "/pet", "{")
+	response := _test.PostRequest(handler, "/pet", "{")
 	assertResponseError(t, response, resperr.InvalidResource)
 }
 
@@ -345,15 +345,15 @@ func TestValidPet(t *testing.T) {
 }
 
 func TestPetPostValidJsonNoPet(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := test.PostRequest(handler, "/pet", "{}")
+	response := _test.PostRequest(handler, "/pet", "{}")
 	assertResponseError(t, response, resperr.InvalidResource)
 }
 
 func TestPetPost(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
 	postPet := data.Pet{
@@ -365,7 +365,7 @@ func TestPetPost(t *testing.T) {
 	spyStore.WhenAddPet(func(name, race, mod string) int {
 		return 5
 	})
-	response := test.PostRequest(handler, "/pet", postPet)
+	response := _test.PostRequest(handler, "/pet", postPet)
 
 	got := response.Code
 	want := http.StatusOK
@@ -398,7 +398,7 @@ func TestPetPost(t *testing.T) {
 }
 
 func TestDeletePet(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
 	t.Run("we could delete a existing pet", func(t *testing.T) {
@@ -407,7 +407,7 @@ func TestDeletePet(t *testing.T) {
 			return nil
 		})
 
-		response := test.DeleteRequest(handler, "/pet/2")
+		response := _test.DeleteRequest(handler, "/pet/2")
 		assertResponseError(t, response, resperr.None)
 
 		if spyStore.DeleteWasCall != true {
@@ -428,7 +428,7 @@ func TestDeletePet(t *testing.T) {
 			return store.PetNotFound
 		})
 
-		response := test.DeleteRequest(handler, "/pet/2")
+		response := _test.DeleteRequest(handler, "/pet/2")
 		assertResponseError(t, response, resperr.NotFound)
 
 		if spyStore.DeleteWasCall != true {
@@ -445,7 +445,7 @@ func TestDeletePet(t *testing.T) {
 }
 
 func TestPetPut(t *testing.T) {
-	spyStore := test.NewSpyStore()
+	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
 	putPet := data.Pet{
@@ -555,7 +555,7 @@ func TestPetPut(t *testing.T) {
 				return tt.update, tt.err
 			})
 
-			response := test.PutRequest(handler, tt.url, tt.pet)
+			response := _test.PutRequest(handler, tt.url, tt.pet)
 
 			got := response.Code
 

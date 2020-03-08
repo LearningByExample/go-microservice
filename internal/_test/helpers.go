@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  */
 
-package test
+package _test
 
 import (
 	"encoding/json"

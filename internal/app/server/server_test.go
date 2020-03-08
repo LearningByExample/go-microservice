@@ -26,11 +26,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/LearningByExample/go-microservice/internal/app/test"
+	"github.com/LearningByExample/go-microservice/internal/_test"
 )
 
 func TestServer(t *testing.T) {
-	store := test.NewSpyStore()
+	store := _test.NewSpyStore()
 
 	handler := NewServer(8080, &store).(server)
 
@@ -55,7 +55,7 @@ func TestServer(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			response := test.GetRequest(handler, tt.path)
+			response := _test.GetRequest(handler, tt.path)
 			got := response.Code
 
 			if got != tt.want {
