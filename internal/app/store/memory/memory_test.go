@@ -23,8 +23,8 @@
 package memory
 
 import (
-	"github.com/LearningByExample/go-microservice/data"
-	"github.com/LearningByExample/go-microservice/store"
+	"github.com/LearningByExample/go-microservice/internal/app/data"
+	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"reflect"
 	"testing"
 )

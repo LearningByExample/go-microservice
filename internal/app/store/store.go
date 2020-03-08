@@ -20,51 +20,17 @@
  *  THE SOFTWARE.
  */
 
-package memory
+package store
 
 import (
-	"github.com/LearningByExample/go-microservice/data"
-	"github.com/LearningByExample/go-microservice/store"
+	"errors"
+	"github.com/LearningByExample/go-microservice/internal/app/data"
 )
 
-type PetMap map[int]data.Pet
-type inMemoryPetStore struct {
-	pets   PetMap
-	lastId int
+type PetStore interface {
+	AddPet(name string, race string, mod string) int
+	GetPet(id int) (data.Pet, error)
+	DeletePet(id int) error
 }
 
-func (s *inMemoryPetStore) DeletePet(id int) error {
-	_, err := s.GetPet(id)
-	if err != nil {
-		return err
-	}
-
-	delete(s.pets, id)
-
-	return nil
-}
-
-func (s *inMemoryPetStore) AddPet(name string, race string, mod string) int {
-	s.lastId++
-	id := s.lastId
-	s.pets[id] = data.Pet{Id: id, Name: name, Race: race, Mod: mod}
-	return id
-}
-
-func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
-	var err error = nil
-	value, found := s.pets[id]
-	if !found {
-		err = store.PetNotFound
-	}
-	return value, err
-}
-
-func NewInMemoryPetStore() store.PetStore {
-	var petStore = inMemoryPetStore{
-		pets:   make(PetMap),
-		lastId: 0,
-	}
-
-	return &petStore
-}
+var PetNotFound = errors.New("can not find pet")

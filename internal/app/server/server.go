@@ -23,44 +23,48 @@
 package server
 
 import (
+	"fmt"
+	"github.com/LearningByExample/go-microservice/internal/app/resperr"
+	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"log"
 	"net/http"
-	"testing"
-
-	"github.com/LearningByExample/go-microservice/test"
 )
 
-func TestServer(t *testing.T) {
-	store := test.NewSpyStore()
+type Server interface {
+	Serve()
+}
 
-	handler := NewServer(8080, &store).(server)
+type server struct {
+	port int
+	mux  *http.ServeMux
+}
 
-	type testCase struct {
-		name string
-		path string
-		want int
+func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
+}
+
+func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
+	resperr.NotFound.Write(w)
+}
+
+func (s server) Serve() {
+	addr := fmt.Sprintf(":%d", s.port)
+	log.Printf("Starting server at %s", addr)
+
+	_ = http.ListenAndServe(addr, s)
+}
+
+func NewServer(port int, store store.PetStore) Server {
+	mux := http.NewServeMux()
+
+	srv := server{
+		port: port,
+		mux:  mux,
 	}
 
-	var cases = []testCase{
-		{
-			name: "must return not found",
-			path: "/bad-url",
-			want: http.StatusNotFound,
-		},
-		{
-			name: "must return ok",
-			path: "/pet/1",
-			want: http.StatusOK,
-		},
-	}
+	mux.HandleFunc("/", srv.notFound)
+	mux.Handle("/pet", NewPetHandler(store))
+	mux.Handle("/pet/", NewPetHandler(store))
 
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			response := test.GetRequest(handler, tt.path)
-			got := response.Code
-
-			if got != tt.want {
-				t.Fatalf("error got %v, want %v", got, tt.want)
-			}
-		})
-	}
+	return srv
 }

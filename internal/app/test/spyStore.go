@@ -1,6 +1,6 @@
 package test
 
-import "github.com/LearningByExample/go-microservice/data"
+import "github.com/LearningByExample/go-microservice/internal/app/data"
 
 type SpyStore struct {
 	DeleteWasCall bool

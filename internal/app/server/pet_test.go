@@ -29,11 +29,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/LearningByExample/go-microservice/constants"
-	"github.com/LearningByExample/go-microservice/data"
-	"github.com/LearningByExample/go-microservice/resperr"
-	"github.com/LearningByExample/go-microservice/store"
-	"github.com/LearningByExample/go-microservice/test"
+	"github.com/LearningByExample/go-microservice/internal/app/constants"
+	"github.com/LearningByExample/go-microservice/internal/app/data"
+	"github.com/LearningByExample/go-microservice/internal/app/resperr"
+	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"github.com/LearningByExample/go-microservice/internal/app/test"
 )
 
 func TestNewPetHandler(t *testing.T) {

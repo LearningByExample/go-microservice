@@ -20,17 +20,15 @@
  *  THE SOFTWARE.
  */
 
-package store
+package main
 
 import (
-	"errors"
-	"github.com/LearningByExample/go-microservice/data"
+	"github.com/LearningByExample/go-microservice/internal/app/server"
+	"github.com/LearningByExample/go-microservice/internal/app/store/memory"
 )
 
-type PetStore interface {
-	AddPet(name string, race string, mod string) int
-	GetPet(id int) (data.Pet, error)
-	DeletePet(id int) error
+func main() {
+	store := memory.NewInMemoryPetStore()
+	srv := server.NewServer(8080, store)
+	srv.Serve()
 }
-
-var PetNotFound = errors.New("can not find pet")

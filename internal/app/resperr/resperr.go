@@ -25,7 +25,7 @@ package resperr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/LearningByExample/go-microservice/constants"
+	"github.com/LearningByExample/go-microservice/internal/app/constants"
 	"net/http"
 )
 

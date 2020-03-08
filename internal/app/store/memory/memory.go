@@ -20,15 +20,51 @@
  *  THE SOFTWARE.
  */
 
-package main
+package memory
 
 import (
-	"github.com/LearningByExample/go-microservice/server"
-	"github.com/LearningByExample/go-microservice/store/memory"
+	"github.com/LearningByExample/go-microservice/internal/app/data"
+	"github.com/LearningByExample/go-microservice/internal/app/store"
 )
 
-func main() {
-	store := memory.NewInMemoryPetStore()
-	srv := server.NewServer(8080, store)
-	srv.Serve()
+type PetMap map[int]data.Pet
+type inMemoryPetStore struct {
+	pets   PetMap
+	lastId int
+}
+
+func (s *inMemoryPetStore) DeletePet(id int) error {
+	_, err := s.GetPet(id)
+	if err != nil {
+		return err
+	}
+
+	delete(s.pets, id)
+
+	return nil
+}
+
+func (s *inMemoryPetStore) AddPet(name string, race string, mod string) int {
+	s.lastId++
+	id := s.lastId
+	s.pets[id] = data.Pet{Id: id, Name: name, Race: race, Mod: mod}
+	return id
+}
+
+func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
+	var err error = nil
+	value, found := s.pets[id]
+	if !found {
+		err = store.PetNotFound
+	}
+	return value, err
+}
+
+func NewInMemoryPetStore() store.PetStore {
+	var petStore = inMemoryPetStore{
+		pets:   make(PetMap),
+		lastId: 0,
+	}
+
+	return &petStore
 }

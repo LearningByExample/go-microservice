@@ -8,7 +8,7 @@ A educational project for creating a microservice in go
 For running the example you should do :
 
 ```shell script
-$ go run .
+$ make run
 ```
 
 ## Running the tests
@@ -16,7 +16,7 @@ $ go run .
 For running the tests you should do :
 
 ```shell script
-$ go test ./... -v
+$ make test
 ```
 
 ## Example requests using HTTPie
@@ -26,7 +26,7 @@ First install [HTTPie](https://httpie.org/doc#installation)
 ### Post a new Pet
 
 ```shell script
-$ http POST :8080/pet name=Fluffy type=Dog mod=Happy
+$ http POST :8080/pet name=Fluffy race=Dog mod=Happy
 
 HTTP/1.1 200 OK
 Content-Length: 0
