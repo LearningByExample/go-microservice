@@ -31,7 +31,7 @@ import (
 )
 
 type Server interface {
-	Serve()
+	Serve() error
 }
 
 type server struct {
@@ -47,11 +47,11 @@ func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 	resperr.NotFound.Write(w)
 }
 
-func (s server) Serve() {
+func (s server) Serve() error {
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("Starting server at %s", addr)
 
-	_ = http.ListenAndServe(addr, s)
+	return http.ListenAndServe(addr, s)
 }
 
 func NewServer(port int, store store.PetStore) Server {

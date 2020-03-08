@@ -25,10 +25,13 @@ package main
 import (
 	"github.com/LearningByExample/go-microservice/internal/app/server"
 	"github.com/LearningByExample/go-microservice/internal/app/store/memory"
+	"log"
 )
 
 func main() {
 	store := memory.NewInMemoryPetStore()
 	srv := server.NewServer(8080, store)
-	srv.Serve()
+	if err := srv.Serve(); err != nil {
+		log.Printf("Error starting server %q", err)
+	}
 }
