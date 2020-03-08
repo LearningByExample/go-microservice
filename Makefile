@@ -18,13 +18,24 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
+# Go parameters
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GOCLEAN=$(GOCMD) clean
+GOTEST=$(GOCMD) test
+GORUN=$(GOCMD) run
+BUILD_DIR=build
+BINARY_NAME=$(BUILD_DIR)/go-microservice
+APP_PATH="./internal/app"
+
 default: build
 
-build:
-	go build -o build/go-microservice ./internal/app
-
-run:
-	go run ./internal/app
-
+build: clean test
+		$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
 test:
-	go test ./internal/app/... -v
+		$(GOTEST) -v $(APP_PATH)/...
+clean:
+		$(GOCLEAN) $(APP_PATH)
+		rm -rf $(BUILD_DIR)
+run: build
+		./$(BINARY_NAME)
