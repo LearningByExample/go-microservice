@@ -23,6 +23,7 @@ GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
+GOFORMAT=$(GOCMD) fmt
 GORUN=$(GOCMD) run
 BUILD_DIR=build
 BINARY_NAME=$(BUILD_DIR)/go-microservice
@@ -31,11 +32,13 @@ APP_PATH="./internal/app"
 default: build
 
 build: clean test
-		$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
+	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
 test:
-		$(GOTEST) -v $(APP_PATH)/...
+	$(GOTEST) -v $(APP_PATH)/...
 clean:
-		$(GOCLEAN) $(APP_PATH)
-		rm -rf $(BUILD_DIR)
+	$(GOCLEAN) $(APP_PATH)
+	rm -rf $(BUILD_DIR)
+format:
+	$(GOFORMAT) $(APP_PATH)/...
 run: build
-		./$(BINARY_NAME)
+	./$(BINARY_NAME)
