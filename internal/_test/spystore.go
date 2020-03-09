@@ -27,12 +27,14 @@ import "github.com/LearningByExample/go-microservice/internal/app/data"
 type SpyStore struct {
 	DeleteWasCall bool
 	GetWasCall    bool
+	GetAllWasCall bool
 	AddWasCall    bool
 	UpdateWasCall bool
 	Id            int
 	PetParameters data.Pet
 	deleteFunc    func(id int) error
 	getFunc       func(id int) (data.Pet, error)
+	getAllFunc    func() []data.Pet
 	addFunc       func(name string, race string, mod string) int
 	updateFunc    func(id int, name string, race string, mod string) (bool, error)
 }
@@ -40,6 +42,7 @@ type SpyStore struct {
 func (s *SpyStore) Reset() {
 	s.DeleteWasCall = false
 	s.GetWasCall = false
+	s.GetAllWasCall = false
 	s.AddWasCall = false
 	s.UpdateWasCall = false
 	s.Id = 0
@@ -54,6 +57,9 @@ func (s *SpyStore) Reset() {
 	}
 	s.getFunc = func(id int) (data.Pet, error) {
 		return data.Pet{}, nil
+	}
+	s.getAllFunc = func() []data.Pet {
+		return []data.Pet{}
 	}
 	s.addFunc = func(name string, race string, mod string) int {
 		return 0
@@ -76,6 +82,12 @@ func (s *SpyStore) GetPet(id int) (data.Pet, error) {
 	s.GetWasCall = true
 	s.Id = id
 	return s.getFunc(id)
+}
+
+func (s *SpyStore) GetAllPets() []data.Pet {
+	s.GetAllWasCall = true
+
+	return s.getAllFunc()
 }
 
 func (s *SpyStore) DeletePet(id int) error {
@@ -101,6 +113,10 @@ func (s *SpyStore) WhenDeletePet(deleteFunc func(id int) error) {
 
 func (s *SpyStore) WhenGetPet(getFunc func(id int) (data.Pet, error)) {
 	s.getFunc = getFunc
+}
+
+func (s *SpyStore) WhenGetAllPets(getAllFunc func() []data.Pet) {
+	s.getAllFunc = getAllFunc
 }
 
 func (s *SpyStore) WhenAddPet(addFunc func(name string, race string, mod string) int) {

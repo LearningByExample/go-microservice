@@ -60,6 +60,14 @@ func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
 	return value, err
 }
 
+func (s inMemoryPetStore) GetAllPets() []data.Pet {
+	result := make([]data.Pet, 0, len(s.pets))
+	for k := range s.pets {
+		result = append(result, s.pets[k])
+	}
+	return result
+}
+
 func petEquals(p data.Pet, name string, race string, mod string) bool {
 	return p.Name == name && p.Race == race && p.Mod == mod
 }
