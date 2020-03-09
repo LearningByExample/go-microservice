@@ -182,3 +182,30 @@ func TestUpdatePet(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPets(t *testing.T) {
+	ps := NewInMemoryPetStore()
+
+	idDog := ps.AddPet("Fluff", "dog", "happy")
+	idCat := ps.AddPet("Lion", "cat", "brave")
+
+	got := ps.GetAllPets()
+	want := []data.Pet{
+		{
+			Id:   idDog,
+			Name: "Fluff",
+			Race: "dog",
+			Mod:  "happy",
+		},
+		{
+			Id:   idCat,
+			Name: "Lion",
+			Race: "cat",
+			Mod:  "brave",
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+}

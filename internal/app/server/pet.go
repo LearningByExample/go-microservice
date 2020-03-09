@@ -46,8 +46,9 @@ type petHandler struct {
 }
 
 const (
-	petIdExpr    = `^\/pet\/(\d*)$`
-	petNotIdExpr = `^\/pet$`
+	petIdExpr    = `^\/pets\/(\d*)$`
+	petNotIdExpr = `^\/pets$`
+	petLocation  = "/pets/%d"
 	pathNotValid = "no valid path"
 )
 
@@ -64,20 +65,31 @@ func (s petHandler) petID(path string) (int, error) {
 }
 
 func (s petHandler) getPetRequest(w http.ResponseWriter, r *http.Request) error {
-	if id, err := s.petID(r.URL.Path); err == nil {
-		if pet, err := s.data.GetPet(id); err == store.PetNotFound {
-			return resperr.NotFound
-		} else {
-			w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
-			w.WriteHeader(http.StatusOK)
-			encoder := json.NewEncoder(w)
-			if err = encoder.Encode(pet); err != nil {
-				return resperr.WrittenJson
-			}
-			return nil
+	if s.petNoIdPathReg.MatchString(r.URL.Path) {
+		pets := s.data.GetAllPets()
+		w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		if err := encoder.Encode(pets); err != nil {
+			return resperr.WrittenJson
 		}
+		return nil
 	} else {
-		return resperr.InvalidUrl
+		if id, err := s.petID(r.URL.Path); err == nil {
+			if pet, err := s.data.GetPet(id); err == store.PetNotFound {
+				return resperr.NotFound
+			} else {
+				w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
+				w.WriteHeader(http.StatusOK)
+				encoder := json.NewEncoder(w)
+				if err = encoder.Encode(pet); err != nil {
+					return resperr.WrittenJson
+				}
+				return nil
+			}
+		} else {
+			return resperr.InvalidUrl
+		}
 	}
 }
 
@@ -94,7 +106,7 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error
 				if s.validPet(pet) {
 					id := s.data.AddPet(pet.Name, pet.Race, pet.Mod)
 					w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
-					w.Header().Set(constants.Location, fmt.Sprintf("/pet/%d", id))
+					w.Header().Set(constants.Location, fmt.Sprintf(petLocation, id))
 					w.WriteHeader(http.StatusOK)
 					return nil
 				} else {

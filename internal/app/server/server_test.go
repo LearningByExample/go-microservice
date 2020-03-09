@@ -48,7 +48,7 @@ func TestServer(t *testing.T) {
 		},
 		{
 			name: "must return ok",
-			path: "/pet/1",
+			path: "/pets/1",
 			want: http.StatusOK,
 		},
 	}
