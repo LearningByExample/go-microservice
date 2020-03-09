@@ -30,6 +30,12 @@ import (
 	"net/http"
 )
 
+const (
+	rootPath     = "/"
+	petPath      = "/pets"
+	petWithSlash = "/pets/"
+)
+
 type Server interface {
 	Serve() error
 }
@@ -62,9 +68,9 @@ func NewServer(port int, store store.PetStore) Server {
 		mux:  mux,
 	}
 
-	mux.HandleFunc("/", srv.notFound)
-	mux.Handle("/pet", NewPetHandler(store))
-	mux.Handle("/pet/", NewPetHandler(store))
+	mux.HandleFunc(rootPath, srv.notFound)
+	mux.Handle(petPath, NewPetHandler(store))
+	mux.Handle(petWithSlash, NewPetHandler(store))
 
 	return srv
 }

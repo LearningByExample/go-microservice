@@ -46,8 +46,9 @@ type petHandler struct {
 }
 
 const (
-	petIdExpr    = `^\/pet\/(\d*)$`
-	petNotIdExpr = `^\/pet$`
+	petIdExpr    = `^\/pets\/(\d*)$`
+	petNotIdExpr = `^\/pets$`
+	petLocation  = "/pets/%d"
 	pathNotValid = "no valid path"
 )
 
@@ -94,7 +95,7 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error
 				if s.validPet(pet) {
 					id := s.data.AddPet(pet.Name, pet.Race, pet.Mod)
 					w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
-					w.Header().Set(constants.Location, fmt.Sprintf("/pet/%d", id))
+					w.Header().Set(constants.Location, fmt.Sprintf(petLocation, id))
 					w.WriteHeader(http.StatusOK)
 					return nil
 				} else {

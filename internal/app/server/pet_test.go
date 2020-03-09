@@ -58,13 +58,13 @@ func TestPetId(t *testing.T) {
 	var cases = []testCase{
 		{
 			name:  "must found a pet",
-			path:  "/pet/1",
+			path:  "/pets/1",
 			want:  1,
 			error: false,
 		},
 		{
 			name:  "found another",
-			path:  "/pet/2",
+			path:  "/pets/2",
 			want:  2,
 			error: false,
 		},
@@ -105,7 +105,7 @@ func TestGetPetRequest(t *testing.T) {
 	spyStore.WhenGetPet(func(id int) (data.Pet, error) {
 		return mockPet, nil
 	})
-	response := _test.GetRequest(handler, "/pet/2")
+	response := _test.GetRequest(handler, "/pets/2")
 
 	assertPetResponseEquals(t, response, mockPet)
 
@@ -209,14 +209,14 @@ func TestPetResponses(t *testing.T) {
 	var cases = []testCase{
 		{
 			name:              "must found a pet",
-			path:              "/pet/1",
+			path:              "/pets/1",
 			id:                1,
 			want:              resperr.None,
 			getShouldBeCalled: true,
 		},
 		{
 			name:              "must not found another",
-			path:              "/pet/3",
+			path:              "/pets/3",
 			id:                3,
 			want:              resperr.NotFound,
 			getShouldBeCalled: true,
@@ -253,7 +253,7 @@ func TestPetEmptyPost(t *testing.T) {
 	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := _test.PostRequest(handler, "/pet", nil)
+	response := _test.PostRequest(handler, "/pets", nil)
 	assertResponseError(t, response, resperr.NotBodyProvided)
 }
 
@@ -261,7 +261,7 @@ func TestPetInvalidMethod(t *testing.T) {
 	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := _test.PatchRequest(handler, "/pet/1", nil)
+	response := _test.PatchRequest(handler, "/pets/1", nil)
 	assertResponseError(t, response, resperr.BadRequest)
 }
 
@@ -269,7 +269,7 @@ func TestPetPostInvalidJson(t *testing.T) {
 	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := _test.PostRequest(handler, "/pet", "{")
+	response := _test.PostRequest(handler, "/pets", "{")
 	assertResponseError(t, response, resperr.InvalidResource)
 }
 
@@ -348,7 +348,7 @@ func TestPetPostValidJsonNoPet(t *testing.T) {
 	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
 
-	response := _test.PostRequest(handler, "/pet", "{}")
+	response := _test.PostRequest(handler, "/pets", "{}")
 	assertResponseError(t, response, resperr.InvalidResource)
 }
 
@@ -365,7 +365,7 @@ func TestPetPost(t *testing.T) {
 	spyStore.WhenAddPet(func(name, race, mod string) int {
 		return 5
 	})
-	response := _test.PostRequest(handler, "/pet", postPet)
+	response := _test.PostRequest(handler, "/pets", postPet)
 
 	got := response.Code
 	want := http.StatusOK
@@ -390,7 +390,7 @@ func TestPetPost(t *testing.T) {
 	}
 
 	gotLocation := response.Header().Get(constants.Location)
-	wantLocation := "/pet/5"
+	wantLocation := "/pets/5"
 
 	if gotLocation != wantLocation {
 		t.Fatalf("got %v, want %v", gotLocation, wantLocation)
@@ -407,7 +407,7 @@ func TestDeletePet(t *testing.T) {
 			return nil
 		})
 
-		response := _test.DeleteRequest(handler, "/pet/2")
+		response := _test.DeleteRequest(handler, "/pets/2")
 		assertResponseError(t, response, resperr.None)
 
 		if spyStore.DeleteWasCall != true {
@@ -428,7 +428,7 @@ func TestDeletePet(t *testing.T) {
 			return store.PetNotFound
 		})
 
-		response := _test.DeleteRequest(handler, "/pet/2")
+		response := _test.DeleteRequest(handler, "/pets/2")
 		assertResponseError(t, response, resperr.NotFound)
 
 		if spyStore.DeleteWasCall != true {
@@ -472,7 +472,7 @@ func TestPetPut(t *testing.T) {
 	var cases = []TestCase{
 		{
 			name: "modify a pet",
-			url:  "/pet/1",
+			url:  "/pets/1",
 			pet: data.Pet{
 				Name: "Lion",
 				Race: "cat",
@@ -488,7 +488,7 @@ func TestPetPut(t *testing.T) {
 		},
 		{
 			name: "not modify a pet",
-			url:  "/pet/1",
+			url:  "/pets/1",
 			pet: data.Pet{
 				Name: "Lion",
 				Race: "cat",
@@ -504,7 +504,7 @@ func TestPetPut(t *testing.T) {
 		},
 		{
 			name: "pet not found",
-			url:  "/pet/1",
+			url:  "/pets/1",
 			pet: data.Pet{
 				Name: "Lion",
 				Race: "cat",
@@ -520,7 +520,7 @@ func TestPetPut(t *testing.T) {
 		},
 		{
 			name: "bad pet",
-			url:  "/pet/1",
+			url:  "/pets/1",
 			pet: data.Pet{
 				Name: "",
 				Race: "cat",
@@ -536,7 +536,7 @@ func TestPetPut(t *testing.T) {
 		},
 		{
 			name:   "bad url",
-			url:    "/pet/zz",
+			url:    "/pets/zz",
 			pet:    data.Pet{},
 			update: true,
 			err:    nil,

@@ -26,7 +26,7 @@ First install [HTTPie](https://httpie.org/doc#installation)
 ### Post a new Pet
 
 ```shell script
-$ http POST :8080/pet name=Fluffy race=Dog mod=Happy
+$ http POST :8080/pets name=Fluffy race=Dog mod=Happy
 
 HTTP/1.1 200 OK
 Content-Length: 0
@@ -38,7 +38,7 @@ Location: /pet/1
 ### Query a Pet
 
 ```shell script
-$ http :8080/pet/1
+$ http :8080/pets/1
 
 HTTP/1.1 200 OK
 Content-Length: 52
@@ -56,10 +56,21 @@ Date: Sun, 23 Feb 2020 15:32:57 GMT
 ### Delete a Pet
 
 ```shell script
-$ http DELETE :8080/pet/1
+$ http DELETE :8080/pets/1
 
 HTTP/1.1 200 OK
 Content-Length: 0
 Content-Type: application/json; charset=utf-8
 Date: Sun, 23 Feb 2020 15:33:42 GMT
+```
+
+### Update a  Pet
+
+```shell script
+$ http PUT :8080/pets/1 name=Fluffy race=Dog mod=Happy
+
+HTTP/1.1 200 OK
+Content-Length: 0
+Content-Type: application/json; charset=utf-8
+Date: Sun, 23 Feb 2020 15:31:31 GMT
 ```
