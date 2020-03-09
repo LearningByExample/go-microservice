@@ -64,13 +64,39 @@ Content-Type: application/json; charset=utf-8
 Date: Sun, 23 Feb 2020 15:33:42 GMT
 ```
 
-### Update a  Pet
+### Update a Pet
 
 ```shell script
-$ http PUT :8080/pets/1 name=Fluffy race=Dog mod=Happy
+$ http PUT :8080/pets/1 name=Fluffy race=Dog mod=Sad
 
 HTTP/1.1 200 OK
 Content-Length: 0
 Content-Type: application/json; charset=utf-8
 Date: Sun, 23 Feb 2020 15:31:31 GMT
+```
+
+### Get all Pets
+
+```shell script
+$ http GET :8080/pets
+
+HTTP/1.1 200 OK
+Content-Length: 104
+Content-Type: application/json; charset=utf-8
+Date: Mon, 09 Mar 2020 08:07:36 GMT
+
+[
+    {
+        "id": 1,
+        "mod": "Happy",
+        "name": "Fluffy",
+        "race": "Dog"
+    },
+    {
+        "id": 2,
+        "mod": "Brave",
+        "name": "Lion",
+        "race": "Cat"
+    }
+]
 ```

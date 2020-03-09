@@ -121,6 +121,57 @@ func TestGetPetRequest(t *testing.T) {
 	}
 }
 
+func TestGetAllPets(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	mockPets := []data.Pet{
+		{
+			Id:   1,
+			Name: "Fluffy",
+			Race: "dog",
+			Mod:  "happy",
+		},
+		{
+			Id:   2,
+			Name: "Lion",
+			Race: "cat",
+			Mod:  "brave",
+		},
+	}
+
+	spyStore.WhenGetAllPets(func() []data.Pet {
+		return mockPets
+	})
+
+	response := _test.GetRequest(handler, "/pets")
+
+	assertPetsResponseEquals(t, response, mockPets, 2)
+
+	if spyStore.GetAllWasCall != true {
+		t.Fatalf("get all was not called")
+	}
+}
+
+func TestGetAllPetsWithNoPets(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	noPets := make([]data.Pet, 0)
+
+	spyStore.WhenGetAllPets(func() []data.Pet {
+		return noPets
+	})
+
+	response := _test.GetRequest(handler, "/pets")
+
+	assertPetsResponseEquals(t, response, noPets, 0)
+
+	if spyStore.GetAllWasCall != true {
+		t.Fatalf("get all was not called")
+	}
+}
+
 func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, error resperr.ResponseError) {
 	t.Helper()
 
@@ -174,6 +225,36 @@ func assertPetResponseEquals(t *testing.T, response *httptest.ResponseRecorder, 
 
 	if reflect.DeepEqual(gotPet, pet) != true {
 		t.Fatalf("got %v, want %v", gotPet, pet)
+	}
+}
+
+func assertPetsResponseEquals(t *testing.T, response *httptest.ResponseRecorder, pets []data.Pet, size int) {
+	t.Helper()
+
+	got := response.Code
+	want := http.StatusOK
+
+	if got != want {
+		t.Fatalf("error got %v, want %v", got, want)
+	}
+
+	gotHeader := response.Header().Get(constants.ContentType)
+	wantHeader := constants.ApplicationJsonUtf8
+
+	if gotHeader != wantHeader {
+		t.Fatalf("error got %q, want %q", gotHeader, wantHeader)
+	}
+
+	decoder := json.NewDecoder(response.Body)
+	gotPets := make([]data.Pet, 0, size)
+	err := decoder.Decode(&gotPets)
+
+	if err != nil {
+		t.Fatalf("got error, %v", err)
+	}
+
+	if reflect.DeepEqual(gotPets, pets) != true {
+		t.Fatalf("got %v, want %v", gotPets, pets)
 	}
 }
 
