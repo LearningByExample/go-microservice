@@ -23,9 +23,11 @@
 package memory
 
 import (
+	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -207,5 +209,36 @@ func TestGetPets(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("want %v, got %v", want, got)
+	}
+}
+
+func TestConcurrency(t *testing.T) {
+	t.Skipf("skiping test, need to fix concurrency")
+	ps := NewInMemoryPetStore()
+	wantedCount := 1000
+	var wg sync.WaitGroup
+	wg.Add(wantedCount)
+	for i := 0; i < wantedCount; i++ {
+		go func(w *sync.WaitGroup) {
+			seqName := fmt.Sprintf("Fluff%d", wantedCount)
+			id := ps.AddPet(seqName, "dog", "happy")
+			_, _ = ps.GetPet(id)
+			newName := fmt.Sprintf("Fluffy%d", wantedCount)
+			_, _ = ps.UpdatePet(id, newName, "dog", "happy")
+			_, _ = ps.GetPet(id)
+			_ = ps.GetAllPets()
+			_ = ps.DeletePet(id)
+			_ = ps.GetAllPets()
+			w.Done()
+		}(&wg)
+	}
+
+	wg.Wait()
+
+	total := len(ps.GetAllPets())
+	wantTotal := 0
+
+	if total != wantTotal {
+		t.Fatalf("want %q, got %v", wantTotal, total)
 	}
 }
