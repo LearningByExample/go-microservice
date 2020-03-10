@@ -46,10 +46,13 @@ type petHandler struct {
 }
 
 const (
-	petIdExpr    = `^\/pets\/(\d*)$`
-	petNotIdExpr = `^\/pets$`
-	petLocation  = "/pets/%d"
-	pathNotValid = "no valid path"
+	petIdExpr       = `^\/pets\/(\d*)$`
+	petNotIdExpr    = `^\/pets$`
+	petLocation     = "/pets/%d"
+	pathNotValid    = "no valid path"
+	petNameNotEmpty = "pet name cannot be empty"
+	petRaceNotEmpty = "pet race cannot be empty"
+	petModNotEmpty  = "pet mod cannot be empty"
 )
 
 var (
@@ -95,8 +98,24 @@ func (s petHandler) getPetRequest(w http.ResponseWriter, r *http.Request) error 
 	}
 }
 
-func (s petHandler) validPet(pet data.Pet) bool {
-	return pet.Name != "" && pet.Race != "" && pet.Mod != ""
+func (s petHandler) validPet(pet data.Pet) error {
+	msg := make([]string, 0, 3)
+
+	if pet.Name == "" {
+		msg = append(msg, petNameNotEmpty)
+	}
+	if pet.Race == "" {
+		msg = append(msg, petRaceNotEmpty)
+	}
+	if pet.Mod == "" {
+		msg = append(msg, petModNotEmpty)
+	}
+
+	if len(msg) == 0 {
+		return nil
+	} else {
+		return resperr.FromErrorMessage(resperr.InvalidResource, msg)
+	}
 }
 
 func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error {
@@ -105,7 +124,7 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error
 			decoder := json.NewDecoder(r.Body)
 			pet := data.Pet{}
 			if err := decoder.Decode(&pet); err == nil {
-				if s.validPet(pet) {
+				if err := s.validPet(pet); err == nil {
 					id, err := s.data.AddPet(pet.Name, pet.Race, pet.Mod)
 					if err == nil {
 						w.Header().Add(constants.ContentType, constants.ApplicationJsonUtf8)
@@ -114,7 +133,7 @@ func (s petHandler) postPetRequest(w http.ResponseWriter, r *http.Request) error
 					}
 					return err
 				} else {
-					return resperr.InvalidResource
+					return err
 				}
 			} else {
 				return resperr.InvalidResource
@@ -148,7 +167,7 @@ func (s petHandler) putPetRequest(w http.ResponseWriter, r *http.Request) error 
 			decoder := json.NewDecoder(r.Body)
 			pet := data.Pet{}
 			if err := decoder.Decode(&pet); err == nil {
-				if s.validPet(pet) {
+				if err := s.validPet(pet); err == nil {
 					if change, err = s.data.UpdatePet(id, pet.Name, pet.Race, pet.Mod); err != nil {
 						return resperr.NotFound
 					} else {
@@ -159,9 +178,9 @@ func (s petHandler) putPetRequest(w http.ResponseWriter, r *http.Request) error 
 							w.WriteHeader(http.StatusNotModified)
 						}
 					}
-					return nil
+					return err
 				} else {
-					return resperr.InvalidResource
+					return err
 				}
 			} else {
 				return resperr.InvalidResource
@@ -185,7 +204,7 @@ func (s petHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rErr = resperr.BadRequest
 	}
 
-	if rErr != resperr.None {
+	if rErr.Status() != resperr.None.Status() {
 		rErr.Write(w)
 	}
 }

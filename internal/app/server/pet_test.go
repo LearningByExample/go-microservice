@@ -203,7 +203,7 @@ func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, erro
 		t.Fatalf("got %v, want %v", got, want)
 	}
 
-	if error != resperr.None {
+	if error.Status() != resperr.None.Status() {
 		decoder := json.NewDecoder(response.Body)
 		gotErrorResponse := resperr.ResponseError{}
 
@@ -215,6 +215,11 @@ func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, erro
 
 		if gotErrorResponse.ErrorStr != error.ErrorStr {
 			t.Fatalf("got %q, want %q", gotErrorResponse.ErrorStr, error.ErrorStr)
+		}
+		if len(gotErrorResponse.Message) != 0 {
+			if !reflect.DeepEqual(gotErrorResponse.Message, error.Message) {
+				t.Fatalf("got %v, want %v", gotErrorResponse.Message, error.Message)
+			}
 		}
 	}
 }
@@ -381,7 +386,7 @@ func TestValidPet(t *testing.T) {
 	type TestCase struct {
 		name string
 		pet  data.Pet
-		want bool
+		want error
 	}
 	var cases = []TestCase{
 		{
@@ -392,7 +397,9 @@ func TestValidPet(t *testing.T) {
 				Race: "",
 				Mod:  "",
 			},
-			want: false,
+			want: resperr.FromErrorMessage(resperr.InvalidResource, []string{
+				petNameNotEmpty, petRaceNotEmpty, petModNotEmpty,
+			}),
 		},
 		{
 			name: "name empty",
@@ -402,7 +409,9 @@ func TestValidPet(t *testing.T) {
 				Race: "aaa",
 				Mod:  "aaa",
 			},
-			want: false,
+			want: resperr.FromErrorMessage(resperr.InvalidResource, []string{
+				petNameNotEmpty,
+			}),
 		},
 		{
 			name: "race empty",
@@ -412,7 +421,9 @@ func TestValidPet(t *testing.T) {
 				Race: "",
 				Mod:  "aaa",
 			},
-			want: false,
+			want: resperr.FromErrorMessage(resperr.InvalidResource, []string{
+				petRaceNotEmpty,
+			}),
 		},
 		{
 			name: "mod empty",
@@ -422,7 +433,9 @@ func TestValidPet(t *testing.T) {
 				Race: "aaa",
 				Mod:  "",
 			},
-			want: false,
+			want: resperr.FromErrorMessage(resperr.InvalidResource, []string{
+				petModNotEmpty,
+			}),
 		},
 		{
 			name: "no empty",
@@ -432,16 +445,18 @@ func TestValidPet(t *testing.T) {
 				Race: "aaa",
 				Mod:  "aa",
 			},
-			want: true,
+			want: nil,
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := handler.validPet(tt.pet)
-			if got != tt.want {
+
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("got %v, want %v", got, tt.want)
 			}
+
 		})
 	}
 }
@@ -451,7 +466,10 @@ func TestPetPostValidJsonNoPet(t *testing.T) {
 	handler := NewPetHandler(&spyStore)
 
 	response := _test.PostRequest(handler, "/pets", "{}")
-	assertResponseError(t, response, resperr.InvalidResource)
+	err := resperr.FromErrorMessage(resperr.InvalidResource, []string{
+		petNameNotEmpty, petRaceNotEmpty, petModNotEmpty,
+	})
+	assertResponseError(t, response, err)
 }
 
 func TestPetPost(t *testing.T) {

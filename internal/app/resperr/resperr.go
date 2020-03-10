@@ -25,6 +25,7 @@ package resperr
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/constants"
 	"net/http"
 )
@@ -33,15 +34,20 @@ const (
 	writtenJson      = "written json"
 	invalidUrl       = "invalid url"
 	notBodyProvided  = "not body provided"
-	invalidResource  = "invalid resource"
 	badRequest       = "bad request"
 	resourceNotFound = "resource not found"
+	invalidResource  = "invalid resource"
 )
 
 type ResponseError struct {
 	error
 	ErrorStr string `json:"error"`
 	status   int
+	Message  []string `json:"message,omitempty"`
+}
+
+func (e ResponseError) Error() string {
+	return fmt.Sprintf("ErrorStr: %q, status: %d, Message: %v", e.ErrorStr, e.status, e.Message)
 }
 
 func (e ResponseError) Status() int {
@@ -55,16 +61,17 @@ func (e ResponseError) Write(w http.ResponseWriter) {
 	_ = encoder.Encode(e)
 }
 
-func newResponseError(e error, status int) ResponseError {
+func newResponseError(e error, status int, msg []string) ResponseError {
 	return ResponseError{
 		error:    e,
 		ErrorStr: e.Error(),
 		status:   status,
+		Message:  msg,
 	}
 }
 
-func newResErrForStr(str string, status int) ResponseError {
-	return newResponseError(errors.New(str), status)
+func NewResErrForStr(str string, status int) ResponseError {
+	return newResponseError(errors.New(str), status, make([]string, 0))
 }
 
 func FromError(err error) ResponseError {
@@ -72,16 +79,20 @@ func FromError(err error) ResponseError {
 	case ResponseError:
 		return v
 	default:
-		return newResponseError(v, http.StatusInternalServerError)
+		return newResponseError(v, http.StatusInternalServerError, make([]string, 0))
 	}
 }
 
+func FromErrorMessage(err ResponseError, msg []string) ResponseError {
+	return newResponseError(err, err.Status(), msg)
+}
+
 var (
-	WrittenJson     = newResErrForStr(writtenJson, http.StatusInternalServerError)
-	InvalidUrl      = newResErrForStr(invalidUrl, http.StatusBadRequest)
-	InvalidResource = newResErrForStr(invalidResource, http.StatusUnprocessableEntity)
-	NotBodyProvided = newResErrForStr(notBodyProvided, http.StatusBadRequest)
-	BadRequest      = newResErrForStr(badRequest, http.StatusBadRequest)
-	NotFound        = newResErrForStr(resourceNotFound, http.StatusNotFound)
+	WrittenJson     = NewResErrForStr(writtenJson, http.StatusInternalServerError)
+	InvalidUrl      = NewResErrForStr(invalidUrl, http.StatusBadRequest)
+	InvalidResource = NewResErrForStr(invalidResource, http.StatusUnprocessableEntity)
+	NotBodyProvided = NewResErrForStr(notBodyProvided, http.StatusBadRequest)
+	BadRequest      = NewResErrForStr(badRequest, http.StatusBadRequest)
+	NotFound        = NewResErrForStr(resourceNotFound, http.StatusNotFound)
 	None            = ResponseError{status: http.StatusOK}
 )
