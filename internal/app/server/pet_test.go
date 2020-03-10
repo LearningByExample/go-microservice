@@ -24,6 +24,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -140,13 +141,33 @@ func TestGetAllPets(t *testing.T) {
 		},
 	}
 
-	spyStore.WhenGetAllPets(func() []data.Pet {
-		return mockPets
+	spyStore.WhenGetAllPets(func() ([]data.Pet, error) {
+		return mockPets, nil
 	})
 
 	response := _test.GetRequest(handler, "/pets")
 
 	assertPetsResponseEquals(t, response, mockPets, 2)
+
+	if spyStore.GetAllWasCall != true {
+		t.Fatalf("get all was not called")
+	}
+}
+
+func TestGetAllPetsWithError(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	mockPets := make([]data.Pet, 0)
+	mockError := errors.New("nasty error")
+
+	spyStore.WhenGetAllPets(func() ([]data.Pet, error) {
+		return mockPets, mockError
+	})
+
+	response := _test.GetRequest(handler, "/pets")
+
+	assertResponseError(t, response, resperr.FromError(mockError))
 
 	if spyStore.GetAllWasCall != true {
 		t.Fatalf("get all was not called")
@@ -159,8 +180,8 @@ func TestGetAllPetsWithNoPets(t *testing.T) {
 
 	noPets := make([]data.Pet, 0)
 
-	spyStore.WhenGetAllPets(func() []data.Pet {
-		return noPets
+	spyStore.WhenGetAllPets(func() ([]data.Pet, error) {
+		return noPets, nil
 	})
 
 	response := _test.GetRequest(handler, "/pets")
@@ -443,8 +464,8 @@ func TestPetPost(t *testing.T) {
 		Mod:  "brave",
 	}
 
-	spyStore.WhenAddPet(func(name, race, mod string) int {
-		return 5
+	spyStore.WhenAddPet(func(name, race, mod string) (int, error) {
+		return 5, nil
 	})
 	response := _test.PostRequest(handler, "/pets", postPet)
 
@@ -475,6 +496,42 @@ func TestPetPost(t *testing.T) {
 
 	if gotLocation != wantLocation {
 		t.Fatalf("got %v, want %v", gotLocation, wantLocation)
+	}
+}
+
+func TestPetPostWithError(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	postPet := data.Pet{
+		Name: "Lion",
+		Race: "cat",
+		Mod:  "brave",
+	}
+
+	mockError := errors.New("nasty error")
+
+	spyStore.WhenAddPet(func(name, race, mod string) (int, error) {
+		return 5, mockError
+	})
+
+	response := _test.PostRequest(handler, "/pets", postPet)
+
+	assertResponseError(t, response, resperr.FromError(mockError))
+
+	if spyStore.AddWasCall != true {
+		t.Fatalf("add was not called")
+	}
+
+	wantPet := data.Pet{
+		Id:   5,
+		Name: postPet.Name,
+		Race: postPet.Race,
+		Mod:  postPet.Mod,
+	}
+
+	if reflect.DeepEqual(wantPet, spyStore.PetParameters) != true {
+		t.Fatalf("got %v, want %v", spyStore.PetParameters, wantPet)
 	}
 }
 

@@ -43,7 +43,7 @@ func TestNewPetStore(t *testing.T) {
 func TestAddNewPet(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
-	id := ps.AddPet("Fluff", "dog", "happy")
+	id, _ := ps.AddPet("Fluff", "dog", "happy")
 
 	got, _ := ps.GetPet(id)
 	want := data.Pet{
@@ -61,8 +61,8 @@ func TestAddNewPet(t *testing.T) {
 func TestAddMultiplePets(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
-	ps.AddPet("Fluff", "dog", "happy")
-	id := ps.AddPet("Lion", "cat", "brave")
+	_, _ = ps.AddPet("Fluff", "dog", "happy")
+	id, _ := ps.AddPet("Lion", "cat", "brave")
 
 	got, _ := ps.GetPet(id)
 	want := data.Pet{
@@ -80,7 +80,7 @@ func TestAddMultiplePets(t *testing.T) {
 func TestGetNewPetNotFound(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
-	ps.AddPet("Fluffy", "dog", "happy")
+	_, _ = ps.AddPet("Fluffy", "dog", "happy")
 
 	_, got := ps.GetPet(2)
 	want := store.PetNotFound
@@ -93,7 +93,7 @@ func TestGetNewPetNotFound(t *testing.T) {
 func TestDeletePet(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
-	ps.AddPet("Fluffy", "dog", "happy")
+	_, _ = ps.AddPet("Fluffy", "dog", "happy")
 
 	t.Run("we could delete a existing pet", func(t *testing.T) {
 		got := ps.DeletePet(1)
@@ -122,7 +122,7 @@ func TestDeletePet(t *testing.T) {
 func TestUpdatePet(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
-	ps.AddPet("Fluffy", "dog", "happy")
+	_, _ = ps.AddPet("Fluffy", "dog", "happy")
 
 	type TestCase struct {
 		name   string
@@ -188,10 +188,10 @@ func TestUpdatePet(t *testing.T) {
 func TestGetPets(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
-	idDog := ps.AddPet("Fluff", "dog", "happy")
-	idCat := ps.AddPet("Lion", "cat", "brave")
+	idDog, _ := ps.AddPet("Fluff", "dog", "happy")
+	idCat, _ := ps.AddPet("Lion", "cat", "brave")
 
-	got := ps.GetAllPets()
+	got, _ := ps.GetAllPets()
 	want := []data.Pet{
 		{
 			Id:   idDog,
@@ -221,21 +221,21 @@ func TestConcurrency(t *testing.T) {
 	for i := 0; i < wantedCount; i++ {
 		go func(w *sync.WaitGroup) {
 			seqName := fmt.Sprintf("Fluff%d", wantedCount)
-			id := ps.AddPet(seqName, "dog", "happy")
+			id, _ := ps.AddPet(seqName, "dog", "happy")
 			_, _ = ps.GetPet(id)
 			newName := fmt.Sprintf("Fluffy%d", wantedCount)
 			_, _ = ps.UpdatePet(id, newName, "dog", "happy")
 			_, _ = ps.GetPet(id)
-			_ = ps.GetAllPets()
+			_, _ = ps.GetAllPets()
 			_ = ps.DeletePet(id)
-			_ = ps.GetAllPets()
+			_, _ = ps.GetAllPets()
 			w.Done()
 		}(&wg)
 	}
 
 	wg.Wait()
-
-	total := len(ps.GetAllPets())
+	pets, _ := ps.GetAllPets()
+	total := len(pets)
 	wantTotal := 0
 
 	if total != wantTotal {

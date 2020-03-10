@@ -44,11 +44,11 @@ func (s *inMemoryPetStore) DeletePet(id int) error {
 	return nil
 }
 
-func (s *inMemoryPetStore) AddPet(name string, race string, mod string) int {
+func (s *inMemoryPetStore) AddPet(name string, race string, mod string) (int, error) {
 	s.lastId++
 	id := s.lastId
 	s.pets[id] = data.Pet{Id: id, Name: name, Race: race, Mod: mod}
-	return id
+	return id, nil
 }
 
 func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
@@ -60,12 +60,12 @@ func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
 	return value, err
 }
 
-func (s inMemoryPetStore) GetAllPets() []data.Pet {
+func (s inMemoryPetStore) GetAllPets() ([]data.Pet, error) {
 	result := make([]data.Pet, 0, len(s.pets))
 	for k := range s.pets {
 		result = append(result, s.pets[k])
 	}
-	return result
+	return result, nil
 }
 
 func petEquals(p data.Pet, name string, race string, mod string) bool {

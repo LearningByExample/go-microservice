@@ -34,8 +34,8 @@ type SpyStore struct {
 	PetParameters data.Pet
 	deleteFunc    func(id int) error
 	getFunc       func(id int) (data.Pet, error)
-	getAllFunc    func() []data.Pet
-	addFunc       func(name string, race string, mod string) int
+	getAllFunc    func() ([]data.Pet, error)
+	addFunc       func(name string, race string, mod string) (int, error)
 	updateFunc    func(id int, name string, race string, mod string) (bool, error)
 }
 
@@ -58,24 +58,25 @@ func (s *SpyStore) Reset() {
 	s.getFunc = func(id int) (data.Pet, error) {
 		return data.Pet{}, nil
 	}
-	s.getAllFunc = func() []data.Pet {
-		return []data.Pet{}
+	s.getAllFunc = func() ([]data.Pet, error) {
+		return []data.Pet{}, nil
 	}
-	s.addFunc = func(name string, race string, mod string) int {
-		return 0
+	s.addFunc = func(name string, race string, mod string) (int, error) {
+		return 0, nil
 	}
 	s.updateFunc = func(id int, name string, race string, mod string) (b bool, err error) {
 		return false, nil
 	}
 }
 
-func (s *SpyStore) AddPet(name string, race string, mod string) int {
+func (s *SpyStore) AddPet(name string, race string, mod string) (int, error) {
+	var err error = nil
 	s.AddWasCall = true
 	s.PetParameters.Name = name
 	s.PetParameters.Race = race
 	s.PetParameters.Mod = mod
-	s.PetParameters.Id = s.addFunc(name, race, mod)
-	return s.PetParameters.Id
+	s.PetParameters.Id, err = s.addFunc(name, race, mod)
+	return s.PetParameters.Id, err
 }
 
 func (s *SpyStore) GetPet(id int) (data.Pet, error) {
@@ -84,7 +85,7 @@ func (s *SpyStore) GetPet(id int) (data.Pet, error) {
 	return s.getFunc(id)
 }
 
-func (s *SpyStore) GetAllPets() []data.Pet {
+func (s *SpyStore) GetAllPets() ([]data.Pet, error) {
 	s.GetAllWasCall = true
 
 	return s.getAllFunc()
@@ -115,11 +116,11 @@ func (s *SpyStore) WhenGetPet(getFunc func(id int) (data.Pet, error)) {
 	s.getFunc = getFunc
 }
 
-func (s *SpyStore) WhenGetAllPets(getAllFunc func() []data.Pet) {
+func (s *SpyStore) WhenGetAllPets(getAllFunc func() ([]data.Pet, error)) {
 	s.getAllFunc = getAllFunc
 }
 
-func (s *SpyStore) WhenAddPet(addFunc func(name string, race string, mod string) int) {
+func (s *SpyStore) WhenAddPet(addFunc func(name string, race string, mod string) (int, error)) {
 	s.addFunc = addFunc
 }
 

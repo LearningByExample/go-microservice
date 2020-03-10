@@ -28,9 +28,9 @@ import (
 )
 
 type PetStore interface {
-	AddPet(name string, race string, mod string) int
+	AddPet(name string, race string, mod string) (int, error)
 	GetPet(id int) (data.Pet, error)
-	GetAllPets() []data.Pet
+	GetAllPets() ([]data.Pet, error)
 	DeletePet(id int) error
 	UpdatePet(id int, name string, race string, mod string) (bool, error)
 }
