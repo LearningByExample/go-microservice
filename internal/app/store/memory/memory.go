@@ -25,12 +25,13 @@ package memory
 import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"sync"
 )
 
 type PetMap map[int]data.Pet
 type inMemoryPetStore struct {
-	pets   PetMap
-	lastId int
+	pets PetMap
+	mu   sync.RWMutex
 }
 
 func (s *inMemoryPetStore) DeletePet(id int) error {
@@ -39,28 +40,36 @@ func (s *inMemoryPetStore) DeletePet(id int) error {
 		return err
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.pets, id)
-
 	return nil
 }
 
 func (s *inMemoryPetStore) AddPet(name string, race string, mod string) (int, error) {
-	s.lastId++
-	id := s.lastId
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id := len(s.pets) + 1
 	s.pets[id] = data.Pet{Id: id, Name: name, Race: race, Mod: mod}
 	return id, nil
 }
 
-func (s inMemoryPetStore) GetPet(id int) (data.Pet, error) {
+func (s *inMemoryPetStore) GetPet(id int) (data.Pet, error) {
 	var err error = nil
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	value, found := s.pets[id]
+
 	if !found {
 		err = store.PetNotFound
 	}
 	return value, err
 }
 
-func (s inMemoryPetStore) GetAllPets() ([]data.Pet, error) {
+func (s *inMemoryPetStore) GetAllPets() ([]data.Pet, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	result := make([]data.Pet, 0, len(s.pets))
 	for k := range s.pets {
 		result = append(result, s.pets[k])
@@ -79,11 +88,9 @@ func (s *inMemoryPetStore) UpdatePet(id int, name string, race string, mod strin
 	if err == nil {
 		change = !petEquals(found, name, race, mod)
 		if change {
-			found.Name = name
-			found.Race = race
-			found.Mod = mod
-
-			s.pets[id] = found
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			s.pets[id] = data.Pet{Id: id, Name: name, Race: race, Mod: mod}
 		}
 	}
 
@@ -92,8 +99,7 @@ func (s *inMemoryPetStore) UpdatePet(id int, name string, race string, mod strin
 
 func NewInMemoryPetStore() store.PetStore {
 	var petStore = inMemoryPetStore{
-		pets:   make(PetMap),
-		lastId: 0,
+		pets: make(PetMap),
 	}
 
 	return &petStore

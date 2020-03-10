@@ -213,7 +213,7 @@ func TestGetPets(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
-	t.Skipf("skiping test, need to fix concurrency")
+
 	ps := NewInMemoryPetStore()
 	wantedCount := 1000
 	var wg sync.WaitGroup
