@@ -45,7 +45,8 @@ type Server interface {
 }
 
 type server struct {
-	h *http.Server
+	h  *http.Server
+	ps store.PetStore
 }
 
 func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -56,40 +57,64 @@ func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 	resperr.NotFound.Write(w)
 }
 
+const dog = `
+   __
+o-''|\_____/)
+ \_/|_)     )
+    \  __  /
+    (_/ (_/    Pet Store
+`
+
 func (s server) Start() []error {
+	print(dog)
+	log.Print("Starting server ...")
 	errs := make([]error, 0)
-	log.Printf("Starting server at %s ...", s.h.Addr)
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		if err := s.h.ListenAndServe(); err != nil {
-			errs = append(errs, err)
-			interrupt <- syscall.SIGIO
-		}
-	}()
+	log.Print("Opening data store ...")
+	if err := s.ps.Open(); err != nil {
+		errs = append(errs, err)
+	}
 
 	if len(errs) == 0 {
-		log.Print("The service is ready to listen and serve.")
+		interrupt := make(chan os.Signal, 1)
+		signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-		killSignal := <-interrupt
-		switch killSignal {
-		case os.Interrupt:
-			log.Print("Got SIGINT...")
-		case syscall.SIGTERM:
-			log.Print("Got SIGTERM...")
-		case syscall.SIGIO:
-			log.Print("Got SIGIO...")
-		}
+		log.Printf("Opening HTTP server at %s ...", s.h.Addr)
+		go func() {
+			if err := s.h.ListenAndServe(); err != nil {
+				errs = append(errs, err)
+				interrupt <- syscall.SIGIO
+			}
+		}()
 
-		log.Print("The service is shutting down...")
-		err := s.h.Shutdown(context.Background())
-		if err != nil {
-			errs = append(errs, err)
+		if len(errs) == 0 {
+			log.Print("HTTP server listening ...")
+
+			killSignal := <-interrupt
+			switch killSignal {
+			case os.Interrupt:
+				log.Print("Got SIGINT closing ...")
+			case syscall.SIGTERM:
+				log.Print("Got SIGTERM closing ...")
+			case syscall.SIGIO:
+				log.Print("Got SIGIO closing ...")
+			}
+
+			log.Print("Closing HTTP server ...")
+			err := s.h.Shutdown(context.Background())
+			if err != nil {
+				errs = append(errs, err)
+			}
+			log.Print("HTTP server closed.")
 		}
-		log.Print("Server shutdown.")
 	}
+
+	log.Print("Closing data store ...")
+	if err := s.ps.Close(); err != nil {
+		errs = append(errs, err)
+	}
+
+	log.Print("Server stopped.")
 
 	return errs
 }
@@ -104,9 +129,10 @@ func NewServer(port int, store store.PetStore) Server {
 			Addr:    addr,
 			Handler: mux,
 		},
+		ps: store,
 	}
 
-	petHandler := NewPetHandler(store)
+	petHandler := NewPetHandler(srv.ps)
 	mux.HandleFunc(rootPath, srv.notFound)
 	mux.Handle(petPath, petHandler)
 	mux.Handle(petWithSlash, petHandler)

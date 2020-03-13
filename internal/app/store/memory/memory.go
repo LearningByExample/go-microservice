@@ -25,6 +25,7 @@ package memory
 import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"log"
 	"sync"
 )
 
@@ -95,6 +96,16 @@ func (s *inMemoryPetStore) UpdatePet(id int, name string, race string, mod strin
 	}
 
 	return change, err
+}
+
+func (s inMemoryPetStore) Open() error {
+	log.Println("In-memory store opened.")
+	return nil
+}
+
+func (s inMemoryPetStore) Close() error {
+	log.Println("In-memory store closed.")
+	return nil
 }
 
 func NewInMemoryPetStore() store.PetStore {

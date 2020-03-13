@@ -22,7 +22,10 @@
 
 package _test
 
-import "github.com/LearningByExample/go-microservice/internal/app/data"
+import (
+	"github.com/LearningByExample/go-microservice/internal/app/data"
+	"log"
+)
 
 type SpyStore struct {
 	DeleteWasCall bool
@@ -106,6 +109,16 @@ func (s *SpyStore) UpdatePet(id int, name string, race string, mod string) (bool
 		Mod:  mod,
 	}
 	return s.updateFunc(id, name, race, mod)
+}
+
+func (s SpyStore) Open() error {
+	log.Println("Opening in spy pet store ...")
+	return nil
+}
+
+func (s SpyStore) Close() error {
+	log.Println("Closing in spy pet store ...")
+	return nil
 }
 
 func (s *SpyStore) WhenDeletePet(deleteFunc func(id int) error) {

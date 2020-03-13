@@ -33,6 +33,8 @@ type PetStore interface {
 	GetAllPets() ([]data.Pet, error)
 	DeletePet(id int) error
 	UpdatePet(id int, name string, race string, mod string) (bool, error)
+	Open() error
+	Close() error
 }
 
 var PetNotFound = errors.New("can not find pet")
