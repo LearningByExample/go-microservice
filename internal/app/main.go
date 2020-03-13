@@ -31,7 +31,11 @@ import (
 func main() {
 	store := memory.NewInMemoryPetStore()
 	srv := server.NewServer(8080, store)
-	if err := srv.Start(); err != nil {
-		log.Fatalf("Error starting server %q", err)
+	if errs := srv.Start(); len(errs) != 0 {
+		for _, err := range errs {
+			log.Printf("Error %v.", err)
+		}
+
+		log.Fatal("Error starting server.")
 	}
 }

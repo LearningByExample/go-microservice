@@ -24,7 +24,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
@@ -42,7 +41,7 @@ const (
 )
 
 type Server interface {
-	Start() error
+	Start() []error
 }
 
 type server struct {
@@ -57,20 +56,21 @@ func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 	resperr.NotFound.Write(w)
 }
 
-func (s server) Start() error {
-	var err error = nil
-	log.Printf("Starting server at %s", s.h.Addr)
+func (s server) Start() []error {
+	errs := make([]error, 0)
+	log.Printf("Starting server at %s ...", s.h.Addr)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		if err = s.h.ListenAndServe(); err != nil {
+		if err := s.h.ListenAndServe(); err != nil {
+			errs = append(errs, err)
 			interrupt <- syscall.SIGIO
 		}
 	}()
 
-	if err == nil {
+	if len(errs) == 0 {
 		log.Print("The service is ready to listen and serve.")
 
 		killSignal := <-interrupt
@@ -84,18 +84,14 @@ func (s server) Start() error {
 		}
 
 		log.Print("The service is shutting down...")
-		errShutdown := s.h.Shutdown(context.Background())
-		if errShutdown != nil {
-			if err == nil {
-				err = errShutdown
-			} else {
-				err = errors.New(err.Error() + " " + errShutdown.Error())
-			}
+		err := s.h.Shutdown(context.Background())
+		if err != nil {
+			errs = append(errs, err)
 		}
-		log.Print("Server shutdown")
+		log.Print("Server shutdown.")
 	}
 
-	return err
+	return errs
 }
 
 func NewServer(port int, store store.PetStore) Server {
