@@ -23,11 +23,16 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -37,40 +42,78 @@ const (
 )
 
 type Server interface {
-	Serve() error
+	Start() error
 }
 
 type server struct {
-	port int
-	mux  *http.ServeMux
+	h *http.Server
 }
 
 func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	s.h.Handler.ServeHTTP(w, r)
 }
 
 func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 	resperr.NotFound.Write(w)
 }
 
-func (s server) Serve() error {
-	addr := fmt.Sprintf(":%d", s.port)
-	log.Printf("Starting server at %s", addr)
+func (s server) Start() error {
+	var err error = nil
+	log.Printf("Starting server at %s", s.h.Addr)
 
-	return http.ListenAndServe(addr, s)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		if err = s.h.ListenAndServe(); err != nil {
+			interrupt <- syscall.SIGIO
+		}
+	}()
+
+	if err == nil {
+		log.Print("The service is ready to listen and serve.")
+
+		killSignal := <-interrupt
+		switch killSignal {
+		case os.Interrupt:
+			log.Print("Got SIGINT...")
+		case syscall.SIGTERM:
+			log.Print("Got SIGTERM...")
+		case syscall.SIGIO:
+			log.Print("Got SIGIO...")
+		}
+
+		log.Print("The service is shutting down...")
+		errShutdown := s.h.Shutdown(context.Background())
+		if errShutdown != nil {
+			if err == nil {
+				err = errShutdown
+			} else {
+				err = errors.New(err.Error() + " " + errShutdown.Error())
+			}
+		}
+		log.Print("Server shutdown")
+	}
+
+	return err
 }
 
 func NewServer(port int, store store.PetStore) Server {
 	mux := http.NewServeMux()
 
+	addr := fmt.Sprintf(":%d", port)
+
 	srv := server{
-		port: port,
-		mux:  mux,
+		h: &http.Server{
+			Addr:    addr,
+			Handler: mux,
+		},
 	}
 
+	petHandler := NewPetHandler(store)
 	mux.HandleFunc(rootPath, srv.notFound)
-	mux.Handle(petPath, NewPetHandler(store))
-	mux.Handle(petWithSlash, NewPetHandler(store))
+	mux.Handle(petPath, petHandler)
+	mux.Handle(petWithSlash, petHandler)
 
 	return srv
 }
