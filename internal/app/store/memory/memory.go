@@ -27,6 +27,7 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
+	"sort"
 	"sync"
 )
 
@@ -39,6 +40,13 @@ type inMemoryPetStore struct {
 const (
 	StoreName = "in-memory"
 )
+
+// byId implements sort.Interface for []data.Pet based on the Id field
+type ById []data.Pet
+
+func (a ById) Len() int           { return len(a) }
+func (a ById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 
 func (s *inMemoryPetStore) DeletePet(id int) error {
 	_, err := s.GetPet(id)
@@ -80,6 +88,7 @@ func (s *inMemoryPetStore) GetAllPets() ([]data.Pet, error) {
 	for k := range s.pets {
 		result = append(result, s.pets[k])
 	}
+	sort.Sort(ById(result))
 	return result, nil
 }
 
