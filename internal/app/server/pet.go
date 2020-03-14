@@ -156,7 +156,7 @@ func (s petHandler) deletePetRequest(w http.ResponseWriter, r *http.Request) err
 			return nil
 		}
 	} else {
-		return resperr.InvalidResource
+		return resperr.InvalidUrl
 	}
 }
 
