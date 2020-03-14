@@ -37,4 +37,22 @@ type PetStore interface {
 	Close() error
 }
 
-var PetNotFound = errors.New("can not find pet")
+type Provider func() PetStore
+type providersMap map[string]Provider
+
+var (
+	PetNotFound      = errors.New("can not find pet")
+	ProviderNotFound = errors.New("can not find provider")
+	providers        = make(providersMap)
+)
+
+func AddStore(name string, provider Provider) {
+	providers[name] = provider
+}
+
+func GetStore(name string) (PetStore, error) {
+	if provider, found := providers[name]; found {
+		return provider(), nil
+	}
+	return nil, ProviderNotFound
+}
