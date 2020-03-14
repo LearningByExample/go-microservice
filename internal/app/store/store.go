@@ -25,6 +25,7 @@ package store
 import (
 	"errors"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
+	"log"
 )
 
 type PetStore interface {
@@ -47,6 +48,7 @@ var (
 )
 
 func AddStore(name string, provider Provider) {
+	log.Printf("Add provider %q.", name)
 	providers[name] = provider
 }
 

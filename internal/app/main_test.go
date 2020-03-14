@@ -22,21 +22,23 @@
 package main
 
 import (
-	"fmt"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
-	"github.com/LearningByExample/go-microservice/internal/app/store/memory"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
 const (
-	invalidPort  = 100000
-	invalidStore = "no-store"
+	invalidPort    = "bad-port.json"
+	invalidStore   = "bad-store.json"
+	testDataFolder = "testdata"
 )
 
 func TestRun(t *testing.T) {
 	t.Run("should fail with invalid port", func(t *testing.T) {
-		err := run(invalidPort, memory.StoreName)
+		path := filepath.Join(testDataFolder, invalidPort)
+		err := run(path)
 		if err == nil {
 			t.Fatalf("expect error got nil")
 		}
@@ -47,7 +49,8 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("should fail with invalid store", func(t *testing.T) {
-		err := run(invalidPort, invalidStore)
+		path := filepath.Join(testDataFolder, invalidStore)
+		err := run(path)
 		if err == nil {
 			t.Fatalf("expect error got nil")
 		}
@@ -59,7 +62,7 @@ func TestRun(t *testing.T) {
 
 }
 
-func TestWithInvalidPort(t *testing.T) {
+func TestMainWithInvalidPort(t *testing.T) {
 	var err error = nil
 	savedLogFatal := logFatal
 	logFatal = func(v ...interface{}) {
@@ -73,12 +76,12 @@ func TestWithInvalidPort(t *testing.T) {
 	}
 
 	oldArgs := os.Args
-	os.Args = []string{"cmd", "-port", fmt.Sprintf("%d", invalidPort)}
+	os.Args = []string{"cmd", "-config", "bad"}
 	main()
 	os.Args = oldArgs
 	logFatal = savedLogFatal
 
-	if err == nil {
-		t.Fatal("we should got an error, got none")
+	if err == config.ErrInvalidCfg {
+		t.Fatalf("we should got invalid config, got %v", err)
 	}
 }

@@ -25,6 +25,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/server"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"github.com/LearningByExample/go-microservice/internal/app/store/memory"
@@ -36,27 +37,43 @@ var (
 	errorStartingServer = errors.New("error starting server")
 )
 
-func run(port int, storeName string) error {
-	store.AddStore(memory.StoreName, memory.NewInMemoryPetStore)
+const (
+	dog = `
+   __
+o-''|\_____/)
+ \_/|_)     )
+    \  __  /
+    (_/ (_/    Pet Store
+`
+)
 
-	st, err := store.GetStore(storeName)
+func run(cfgPath string) error {
+	log.Printf("Loading config from %q ...", cfgPath)
+	cfg, err := config.GetConfig(cfgPath)
 	if err == nil {
-		srv := server.NewServer(port, st)
-		if errs := srv.Start(); len(errs) != 0 {
-			for _, err := range errs {
-				log.Printf("Error %v.", err)
+		log.Println("Config loaded.")
+		store.AddStore(memory.StoreName, memory.NewInMemoryPetStore)
+		var st store.PetStore
+		st, err = store.GetStore(cfg.Store.Name)
+		if err == nil {
+			srv := server.NewServer(cfg.Server.Port, st)
+			if errs := srv.Start(); len(errs) != 0 {
+				for _, err := range errs {
+					log.Printf("Error %v.", err)
+				}
+				err = errorStartingServer
 			}
-			err = errorStartingServer
 		}
 	}
+
 	return err
 }
 
 func main() {
-	port := flag.Int("port", 8080, "HTTP port")
-	storeName := flag.String("store", "in-memory", "HTTP port")
+	print(dog)
+	cfgPath := flag.String("config", "config/default.json", "configuration file path")
 	flag.Parse()
-	if err := run(*port, *storeName); err != nil {
+	if err := run(*cfgPath); err != nil {
 		logFatal(err)
 	}
 }

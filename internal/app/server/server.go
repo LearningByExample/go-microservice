@@ -61,14 +61,6 @@ func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 }
 
 const (
-	dog = `
-   __
-o-''|\_____/)
- \_/|_)     )
-    \  __  /
-    (_/ (_/    Pet Store
-`
-
 	quitSignal = syscall.SIGQUIT
 )
 
@@ -92,7 +84,6 @@ func (s *server) quit() {
 }
 
 func (s *server) Start() []error {
-	print(dog)
 	log.Print("Starting server ...")
 	errs := make([]error, 0)
 
