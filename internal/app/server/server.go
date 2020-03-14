@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -45,19 +46,22 @@ type Server interface {
 }
 
 type server struct {
-	h  *http.Server
-	ps store.PetStore
+	hs  *http.Server
+	ps  store.PetStore
+	ch  chan os.Signal
+	lnf int32
 }
 
 func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.h.Handler.ServeHTTP(w, r)
+	s.hs.Handler.ServeHTTP(w, r)
 }
 
 func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 	resperr.NotFound.Write(w)
 }
 
-const dog = `
+const (
+	dog = `
    __
 o-''|\_____/)
  \_/|_)     )
@@ -65,7 +69,29 @@ o-''|\_____/)
     (_/ (_/    Pet Store
 `
 
-func (s server) Start() []error {
+	quitSignal = syscall.SIGQUIT
+)
+
+func (s *server) isListening() bool {
+	if atomic.LoadInt32(&(s.lnf)) != 0 {
+		return true
+	}
+	return false
+}
+
+func (s *server) setListening(v bool) {
+	var i int32 = 0
+	if v {
+		i = 1
+	}
+	atomic.StoreInt32(&(s.lnf), i)
+}
+
+func (s *server) quit() {
+	s.ch <- quitSignal
+}
+
+func (s *server) Start() []error {
 	print(dog)
 	log.Print("Starting server ...")
 	errs := make([]error, 0)
@@ -76,36 +102,41 @@ func (s server) Start() []error {
 	}
 
 	if len(errs) == 0 {
-		interrupt := make(chan os.Signal, 1)
-		signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+		s.setListening(false)
+		signal.Notify(s.ch, os.Interrupt, syscall.SIGTERM)
 
-		log.Printf("Opening HTTP server at %s ...", s.h.Addr)
+		log.Printf("Opening HTTP server at %s ...", s.hs.Addr)
 		go func() {
-			if err := s.h.ListenAndServe(); err != nil {
+			s.setListening(true)
+			if err := s.hs.ListenAndServe(); err != nil {
 				errs = append(errs, err)
-				interrupt <- syscall.SIGIO
+				s.quit()
+				s.setListening(false)
 			}
 		}()
-
 		if len(errs) == 0 {
 			log.Print("HTTP server listening ...")
 
-			killSignal := <-interrupt
+			killSignal := <-s.ch
 			switch killSignal {
 			case os.Interrupt:
-				log.Print("Got SIGINT closing ...")
+				log.Print("Got interrupt signal closing ...")
 			case syscall.SIGTERM:
-				log.Print("Got SIGTERM closing ...")
-			case syscall.SIGIO:
-				log.Print("Got SIGIO closing ...")
+				log.Print("Got termination signal closing ...")
+			case quitSignal:
+				log.Print("Got quit signal closing ...")
 			}
 
-			log.Print("Closing HTTP server ...")
-			err := s.h.Shutdown(context.Background())
-			if err != nil {
-				errs = append(errs, err)
+			if s.isListening() {
+				log.Print("Closing HTTP server ...")
+				err := s.hs.Shutdown(context.Background())
+				if err != nil {
+					errs = append(errs, err)
+				}
+				log.Print("HTTP server closed.")
+				s.setListening(false)
 			}
-			log.Print("HTTP server closed.")
+
 		}
 	}
 
@@ -125,17 +156,20 @@ func NewServer(port int, store store.PetStore) Server {
 	addr := fmt.Sprintf(":%d", port)
 
 	srv := server{
-		h: &http.Server{
+		hs: &http.Server{
 			Addr:    addr,
 			Handler: mux,
 		},
 		ps: store,
+		ch: make(chan os.Signal, 1),
 	}
+
+	srv.setListening(false)
 
 	petHandler := NewPetHandler(srv.ps)
 	mux.HandleFunc(rootPath, srv.notFound)
 	mux.Handle(petPath, petHandler)
 	mux.Handle(petWithSlash, petHandler)
 
-	return srv
+	return &srv
 }

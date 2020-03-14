@@ -93,6 +93,7 @@ func TestGetNewPetNotFound(t *testing.T) {
 func TestDeletePet(t *testing.T) {
 	ps := NewInMemoryPetStore()
 
+	_ = ps.Open()
 	_, _ = ps.AddPet("Fluffy", "dog", "happy")
 
 	t.Run("we could delete a existing pet", func(t *testing.T) {
@@ -117,6 +118,8 @@ func TestDeletePet(t *testing.T) {
 			t.Fatalf("want %v, got %v", want, got)
 		}
 	})
+
+	_ = ps.Close()
 }
 
 func TestUpdatePet(t *testing.T) {

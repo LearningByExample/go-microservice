@@ -553,6 +553,21 @@ func TestPetPostWithError(t *testing.T) {
 	}
 }
 
+func TestPetPostWithInvalidUrl(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	postPet := data.Pet{
+		Name: "Lion",
+		Race: "cat",
+		Mod:  "brave",
+	}
+
+	response := _test.PostRequest(handler, "/pets/zz", postPet)
+
+	assertResponseError(t, response, resperr.InvalidUrl)
+}
+
 func TestDeletePet(t *testing.T) {
 	spyStore := _test.NewSpyStore()
 	handler := NewPetHandler(&spyStore)
@@ -597,6 +612,16 @@ func TestDeletePet(t *testing.T) {
 		if gotId != wantId {
 			t.Fatalf("we didn't delete the right pet, got %v, want %v", gotId, wantId)
 		}
+	})
+
+	t.Run("we couldn't delete an invalid url", func(t *testing.T) {
+		spyStore.Reset()
+		spyStore.WhenDeletePet(func(id int) error {
+			return nil
+		})
+
+		response := _test.DeleteRequest(handler, "/pets/zz")
+		assertResponseError(t, response, resperr.InvalidUrl)
 	})
 }
 
@@ -738,4 +763,20 @@ func TestPetPut(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPetEmptyPut(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	response := _test.PutRequest(handler, "/pets/1", nil)
+	assertResponseError(t, response, resperr.NotBodyProvided)
+}
+
+func TestPetPutInvalidJson(t *testing.T) {
+	spyStore := _test.NewSpyStore()
+	handler := NewPetHandler(&spyStore)
+
+	response := _test.PutRequest(handler, "/pets/1", "{")
+	assertResponseError(t, response, resperr.InvalidResource)
 }

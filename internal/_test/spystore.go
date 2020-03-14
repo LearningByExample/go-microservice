@@ -33,6 +33,8 @@ type SpyStore struct {
 	GetAllWasCall bool
 	AddWasCall    bool
 	UpdateWasCall bool
+	OpenWasCall   bool
+	CloseWasCall  bool
 	Id            int
 	PetParameters data.Pet
 	deleteFunc    func(id int) error
@@ -40,6 +42,8 @@ type SpyStore struct {
 	getAllFunc    func() ([]data.Pet, error)
 	addFunc       func(name string, race string, mod string) (int, error)
 	updateFunc    func(id int, name string, race string, mod string) (bool, error)
+	openFunc      func() error
+	closeFunc     func() error
 }
 
 func (s *SpyStore) Reset() {
@@ -48,6 +52,8 @@ func (s *SpyStore) Reset() {
 	s.GetAllWasCall = false
 	s.AddWasCall = false
 	s.UpdateWasCall = false
+	s.OpenWasCall = false
+	s.CloseWasCall = false
 	s.Id = 0
 	s.PetParameters = data.Pet{
 		Id:   0,
@@ -69,6 +75,12 @@ func (s *SpyStore) Reset() {
 	}
 	s.updateFunc = func(id int, name string, race string, mod string) (b bool, err error) {
 		return false, nil
+	}
+	s.openFunc = func() error {
+		return nil
+	}
+	s.closeFunc = func() error {
+		return nil
 	}
 }
 
@@ -111,14 +123,16 @@ func (s *SpyStore) UpdatePet(id int, name string, race string, mod string) (bool
 	return s.updateFunc(id, name, race, mod)
 }
 
-func (s SpyStore) Open() error {
-	log.Println("Opening in spy pet store ...")
-	return nil
+func (s *SpyStore) Open() error {
+	s.OpenWasCall = true
+	log.Println("Spy pet store opened.")
+	return s.openFunc()
 }
 
-func (s SpyStore) Close() error {
-	log.Println("Closing in spy pet store ...")
-	return nil
+func (s *SpyStore) Close() error {
+	s.CloseWasCall = true
+	log.Println("Spy pet store closed.")
+	return s.closeFunc()
 }
 
 func (s *SpyStore) WhenDeletePet(deleteFunc func(id int) error) {
@@ -139,6 +153,14 @@ func (s *SpyStore) WhenAddPet(addFunc func(name string, race string, mod string)
 
 func (s *SpyStore) WhenUpdatePet(updateFunc func(id int, name string, race string, mod string) (bool, error)) {
 	s.updateFunc = updateFunc
+}
+
+func (s *SpyStore) WhenOpen(openFunc func() error) {
+	s.openFunc = openFunc
+}
+
+func (s *SpyStore) WhenClose(closeFunc func() error) {
+	s.closeFunc = closeFunc
 }
 
 func NewSpyStore() SpyStore {
