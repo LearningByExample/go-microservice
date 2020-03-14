@@ -20,39 +20,22 @@
  *  THE SOFTWARE.
  */
 
-package store
+package data
 
-import (
-	"errors"
-	"github.com/LearningByExample/go-microservice/internal/app/data"
-)
+import "testing"
 
-type PetStore interface {
-	AddPet(name string, race string, mod string) (int, error)
-	GetPet(id int) (data.Pet, error)
-	GetAllPets() ([]data.Pet, error)
-	DeletePet(id int) error
-	UpdatePet(id int, name string, race string, mod string) (bool, error)
-	Open() error
-	Close() error
-}
-
-type Provider func() PetStore
-type providersMap map[string]Provider
-
-var (
-	PetNotFound      = errors.New("can not find pet")
-	ProviderNotFound = errors.New("can not find provider")
-	providers        = make(providersMap)
-)
-
-func AddStore(name string, provider Provider) {
-	providers[name] = provider
-}
-
-func GetStore(name string) (PetStore, error) {
-	if provider, found := providers[name]; found {
-		return provider(), nil
+func TestPet(t *testing.T) {
+	pet := Pet{
+		Id:   0,
+		Name: "a",
+		Race: "b",
+		Mod:  "c",
 	}
-	return nil, ProviderNotFound
+
+	got := pet.String()
+	want := "{ Id: 0, Name: \"a\", Race: \"b\", Mod: \"c\" }"
+
+	if got != want {
+		t.Fatalf("error get pet string got %v, want %v", got, want)
+	}
 }

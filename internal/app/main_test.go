@@ -19,44 +19,66 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *  THE SOFTWARE.
  */
-
 package main
 
 import (
-	"errors"
-	"flag"
-	"github.com/LearningByExample/go-microservice/internal/app/server"
+	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"github.com/LearningByExample/go-microservice/internal/app/store/memory"
-	"log"
+	"os"
+	"testing"
 )
 
-var (
-	logFatal            = log.Fatal
-	errorStartingServer = errors.New("error starting server")
+const (
+	invalidPort  = 100000
+	invalidStore = "no-store"
 )
 
-func run(port int, storeName string) error {
-	store.AddStore(memory.StoreName, memory.NewInMemoryPetStore)
-
-	st, err := store.GetStore(storeName)
-	if err == nil {
-		srv := server.NewServer(port, st)
-		if errs := srv.Start(); len(errs) != 0 {
-			for _, err := range errs {
-				log.Printf("Error %v.", err)
-			}
-			err = errorStartingServer
+func TestRun(t *testing.T) {
+	t.Run("should fail with invalid port", func(t *testing.T) {
+		err := run(invalidPort, memory.StoreName)
+		if err == nil {
+			t.Fatalf("expect error got nil")
 		}
-	}
-	return err
+		want := errorStartingServer
+		if err != want {
+			t.Fatalf("expect error %v, got %v", want, err)
+		}
+	})
+
+	t.Run("should fail with invalid store", func(t *testing.T) {
+		err := run(invalidPort, invalidStore)
+		if err == nil {
+			t.Fatalf("expect error got nil")
+		}
+		want := store.ProviderNotFound
+		if err != want {
+			t.Fatalf("expect error %v, got %v", want, err)
+		}
+	})
+
 }
 
-func main() {
-	port := flag.Int("port", 8080, "HTTP port")
-	storeName := flag.String("store", "in-memory", "HTTP port")
-	flag.Parse()
-	if err := run(*port, *storeName); err != nil {
-		logFatal(err)
+func TestWithInvalidPort(t *testing.T) {
+	var err error = nil
+	savedLogFatal := logFatal
+	logFatal = func(v ...interface{}) {
+		if len(v) == 1 {
+			switch x := v[0].(type) {
+			case error:
+				err = x
+				break
+			}
+		}
+	}
+
+	oldArgs := os.Args
+	os.Args = []string{"cmd", "-port", fmt.Sprintf("%d", invalidPort)}
+	main()
+	os.Args = oldArgs
+	logFatal = savedLogFatal
+
+	if err == nil {
+		t.Fatal("we should got an error, got none")
 	}
 }
