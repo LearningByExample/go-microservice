@@ -23,16 +23,26 @@
 package server
 
 import (
-	"net/http"
-	"testing"
-
+	"errors"
 	"github.com/LearningByExample/go-microservice/internal/_test"
+	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"math/rand"
+	"net/http"
+	"reflect"
+	"testing"
+	"time"
 )
 
-func TestServer(t *testing.T) {
-	store := _test.NewSpyStore()
+func createServerRandomPort(st store.PetStore) *server {
+	port := rand.Intn(7000-6000) + 6000
+	srv := NewServer(port, st).(*server)
 
-	handler := NewServer(8080, &store).(server)
+	return srv
+}
+
+func TestServerRoutes(t *testing.T) {
+	st := _test.NewSpyStore()
+	srv := createServerRandomPort(&st)
 
 	type testCase struct {
 		name string
@@ -55,12 +65,78 @@ func TestServer(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			response := _test.GetRequest(handler, tt.path)
+			response := _test.GetRequest(srv, tt.path)
 			got := response.Code
 
 			if got != tt.want {
 				t.Fatalf("error got %v, want %v", got, tt.want)
 			}
 		})
+	}
+
+}
+
+func TestServerNoError(t *testing.T) {
+	st := _test.NewSpyStore()
+	srv := createServerRandomPort(&st)
+
+	st.Reset()
+	errs := make([]error, 0)
+	go func() {
+		errs = srv.Start()
+	}()
+
+	for srv.isListening() != true {
+	}
+
+	srv.quit()
+
+	time.Sleep(100 * time.Millisecond)
+
+	want := make([]error, 0)
+
+	if reflect.DeepEqual(errs, want) != true {
+		t.Fatalf("want %v errors, got %v", want, errs)
+	}
+
+	if !st.OpenWasCall {
+		t.Fatal("open was not called")
+	}
+
+	if !st.CloseWasCall {
+		t.Fatal("close was not called")
+	}
+}
+
+func TestServerStoreError(t *testing.T) {
+	st := _test.NewSpyStore()
+	srv := createServerRandomPort(&st)
+
+	oErr := errors.New("nasty open error")
+	cErr := errors.New("nasty close error")
+
+	st.Reset()
+	st.WhenOpen(func() error {
+		return oErr
+	})
+	st.WhenClose(func() error {
+		return cErr
+	})
+
+	got := srv.Start()
+	want := []error{
+		oErr, cErr,
+	}
+
+	if reflect.DeepEqual(got, want) != true {
+		t.Fatalf("want %v errors, got %v", want, got)
+	}
+
+	if !st.OpenWasCall {
+		t.Fatal("open was not called")
+	}
+
+	if !st.CloseWasCall {
+		t.Fatal("close was not called")
 	}
 }
