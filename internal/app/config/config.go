@@ -1,0 +1,85 @@
+/*
+ * Copyright (c) 2020 Learning by Example maintainers.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+
+package config
+
+import (
+	"encoding/json"
+	"errors"
+	"io/ioutil"
+	"os"
+)
+
+var (
+	ErrInvalidCfg = errors.New("invalid configuration")
+)
+
+type ServerCfg struct {
+	Port int `json:"port"`
+}
+
+func (cfg ServerCfg) isValid() bool {
+	return cfg.Port != 0
+}
+
+type StoreCfg struct {
+	Name string `json:"name"`
+}
+
+func (cfg StoreCfg) isValid() bool {
+	return cfg.Name != ""
+}
+
+type CfgData struct {
+	Server ServerCfg `json:"server"`
+	Store  StoreCfg  `json:"store"`
+}
+
+func (cfg CfgData) isValid() bool {
+	return cfg.Server.isValid() && cfg.Store.isValid()
+}
+
+func GetConfig(path string) (CfgData, error) {
+	cfg := CfgData{
+		Server: ServerCfg{},
+		Store:  StoreCfg{},
+	}
+
+	file, err := os.Open(path)
+
+	if file != nil && err == nil {
+		//noinspection GoUnhandledErrorResult
+		defer file.Close()
+		var bytes []byte
+		bytes, err = ioutil.ReadAll(file)
+		if err == nil {
+			err = json.Unmarshal(bytes, &cfg)
+			if err == nil {
+				if !cfg.isValid() {
+					err = ErrInvalidCfg
+				}
+			}
+		}
+	}
+
+	return cfg, err
+}
