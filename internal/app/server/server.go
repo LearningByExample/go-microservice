@@ -25,6 +25,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
@@ -141,10 +142,10 @@ func (s *server) Start() []error {
 	return errs
 }
 
-func NewServer(port int, store store.PetStore) Server {
+func NewServer(cfg config.CfgData, store store.PetStore) Server {
 	mux := http.NewServeMux()
 
-	addr := fmt.Sprintf(":%d", port)
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 
 	srv := server{
 		hs: &http.Server{

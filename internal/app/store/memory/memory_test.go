@@ -24,6 +24,7 @@ package memory
 
 import (
 	"fmt"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"reflect"
@@ -33,7 +34,7 @@ import (
 
 func TestNewPetStore(t *testing.T) {
 
-	got := NewInMemoryPetStore()
+	got := NewInMemoryPetStore(config.CfgData{})
 
 	if got == nil {
 		t.Fatalf("want PetStore, got nil")
@@ -41,7 +42,7 @@ func TestNewPetStore(t *testing.T) {
 }
 
 func TestAddNewPet(t *testing.T) {
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 
 	id, _ := ps.AddPet("Fluff", "dog", "happy")
 
@@ -59,7 +60,7 @@ func TestAddNewPet(t *testing.T) {
 }
 
 func TestAddMultiplePets(t *testing.T) {
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 
 	_, _ = ps.AddPet("Fluff", "dog", "happy")
 	id, _ := ps.AddPet("Lion", "cat", "brave")
@@ -78,7 +79,7 @@ func TestAddMultiplePets(t *testing.T) {
 }
 
 func TestGetNewPetNotFound(t *testing.T) {
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 
 	_, _ = ps.AddPet("Fluffy", "dog", "happy")
 
@@ -91,7 +92,7 @@ func TestGetNewPetNotFound(t *testing.T) {
 }
 
 func TestDeletePet(t *testing.T) {
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 
 	_ = ps.Open()
 	_, _ = ps.AddPet("Fluffy", "dog", "happy")
@@ -123,7 +124,7 @@ func TestDeletePet(t *testing.T) {
 }
 
 func TestUpdatePet(t *testing.T) {
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 
 	_, _ = ps.AddPet("Fluffy", "dog", "happy")
 
@@ -189,7 +190,7 @@ func TestUpdatePet(t *testing.T) {
 }
 
 func TestGetPets(t *testing.T) {
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 
 	idDog, _ := ps.AddPet("Fluff", "dog", "happy")
 	idCat, _ := ps.AddPet("Lion", "cat", "brave")
@@ -217,7 +218,7 @@ func TestGetPets(t *testing.T) {
 
 func TestConcurrency(t *testing.T) {
 
-	ps := NewInMemoryPetStore()
+	ps := NewInMemoryPetStore(config.CfgData{})
 	wantedCount := 1000
 	var wg sync.WaitGroup
 	wg.Add(wantedCount)

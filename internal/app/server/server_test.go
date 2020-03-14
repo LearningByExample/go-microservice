@@ -25,6 +25,7 @@ package server
 import (
 	"errors"
 	"github.com/LearningByExample/go-microservice/internal/_test"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"math/rand"
 	"net/http"
@@ -35,7 +36,13 @@ import (
 
 func createServerRandomPort(st store.PetStore) *server {
 	port := rand.Intn(7000-6000) + 6000
-	srv := NewServer(port, st).(*server)
+	cfg := config.CfgData{
+		Server: config.ServerCfg{
+			Port: port,
+		},
+		Store: config.StoreCfg{},
+	}
+	srv := NewServer(cfg, st).(*server)
 
 	return srv
 }

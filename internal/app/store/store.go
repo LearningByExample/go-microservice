@@ -24,6 +24,7 @@ package store
 
 import (
 	"errors"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"log"
 )
@@ -38,7 +39,7 @@ type PetStore interface {
 	Close() error
 }
 
-type Provider func() PetStore
+type Provider func(cfg config.CfgData) PetStore
 type providersMap map[string]Provider
 
 var (
@@ -52,9 +53,9 @@ func AddStore(name string, provider Provider) {
 	providers[name] = provider
 }
 
-func GetStore(name string) (PetStore, error) {
-	if provider, found := providers[name]; found {
-		return provider(), nil
+func GetStore(cfg config.CfgData) (PetStore, error) {
+	if provider, found := providers[cfg.Store.Name]; found {
+		return provider(cfg), nil
 	}
 	return nil, ProviderNotFound
 }

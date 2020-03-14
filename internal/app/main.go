@@ -47,16 +47,20 @@ o-''|\_____/)
 `
 )
 
+func addStores() {
+	store.AddStore(memory.StoreName, memory.NewInMemoryPetStore)
+}
+
 func run(cfgPath string) error {
 	log.Printf("Loading config from %q ...", cfgPath)
 	cfg, err := config.GetConfig(cfgPath)
 	if err == nil {
 		log.Println("Config loaded.")
-		store.AddStore(memory.StoreName, memory.NewInMemoryPetStore)
+		addStores()
 		var st store.PetStore
-		st, err = store.GetStore(cfg.Store.Name)
+		st, err = store.GetStore(cfg)
 		if err == nil {
-			srv := server.NewServer(cfg.Server.Port, st)
+			srv := server.NewServer(cfg, st)
 			if errs := srv.Start(); len(errs) != 0 {
 				for _, err := range errs {
 					log.Printf("Error %v.", err)
