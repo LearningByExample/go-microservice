@@ -1,6 +1,6 @@
 {
 	"server": {
-		"port": 49
+		"port": 1000000
 	},
 	"store": {
 		"name": "in-memory"
