@@ -23,6 +23,7 @@
 package memory
 
 import (
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
@@ -112,7 +113,7 @@ func (s inMemoryPetStore) Close() error {
 	return nil
 }
 
-func NewInMemoryPetStore() store.PetStore {
+func NewInMemoryPetStore(_ config.CfgData) store.PetStore {
 	var petStore = inMemoryPetStore{
 		pets: make(PetMap),
 	}

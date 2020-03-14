@@ -19,69 +19,57 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *  THE SOFTWARE.
  */
-package main
+
+package config
 
 import (
-	"github.com/LearningByExample/go-microservice/internal/app/config"
-	"github.com/LearningByExample/go-microservice/internal/app/store"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
 const (
-	invalidPort    = "bad-port.json"
-	invalidStore   = "bad-store.json"
 	testDataFolder = "testdata"
+	cfgFile        = "cfg.json"
+	badFile        = "bad.json"
+	invalidFile    = "invalid.json"
+	wrongPath      = "wrong"
 )
 
-func TestRun(t *testing.T) {
-	t.Run("should fail with invalid port", func(t *testing.T) {
-		path := filepath.Join(testDataFolder, invalidPort)
-		err := run(path)
-		if err == nil {
-			t.Fatalf("expect error got nil")
-		}
-		want := errorStartingServer
-		if err != want {
-			t.Fatalf("expect error %v, got %v", want, err)
+func TestGetConfig(t *testing.T) {
+	t.Run("should get config", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, cfgFile)
+		_, err := GetConfig(path)
+
+		if err != nil {
+			t.Fatalf("wan't not error got %v", err)
 		}
 	})
 
-	t.Run("should fail with invalid store", func(t *testing.T) {
-		path := filepath.Join(testDataFolder, invalidStore)
-		err := run(path)
+	t.Run("should get an error on wrong path", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, wrongPath)
+		_, err := GetConfig(path)
+
 		if err == nil {
-			t.Fatalf("expect error got nil")
-		}
-		want := store.ProviderNotFound
-		if err != want {
-			t.Fatalf("expect error %v, got %v", want, err)
+			t.Fatal("wan't error got nil")
 		}
 	})
 
-}
+	t.Run("should get an error on bad file", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, badFile)
+		_, err := GetConfig(path)
 
-func TestMainWithInvalidPort(t *testing.T) {
-	var err error = nil
-	savedLogFatal := logFatal
-	logFatal = func(v ...interface{}) {
-		if len(v) == 1 {
-			switch x := v[0].(type) {
-			case error:
-				err = x
-				break
-			}
+		if err == nil {
+			t.Fatal("wan't error got nil")
 		}
-	}
+	})
 
-	oldArgs := os.Args
-	os.Args = []string{"cmd", "-config", "bad"}
-	main()
-	os.Args = oldArgs
-	logFatal = savedLogFatal
+	t.Run("should get an error on invalid configuration", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, invalidFile)
+		_, err := GetConfig(path)
 
-	if err == config.ErrInvalidCfg {
-		t.Fatalf("we should got invalid config, got %v", err)
-	}
+		if err == nil {
+			t.Fatal("wan't error got nil")
+		}
+	})
+
 }

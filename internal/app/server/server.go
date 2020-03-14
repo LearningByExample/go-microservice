@@ -25,6 +25,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
@@ -61,14 +62,6 @@ func (s server) notFound(w http.ResponseWriter, _ *http.Request) {
 }
 
 const (
-	dog = `
-   __
-o-''|\_____/)
- \_/|_)     )
-    \  __  /
-    (_/ (_/    Pet Store
-`
-
 	quitSignal = syscall.SIGQUIT
 )
 
@@ -92,7 +85,6 @@ func (s *server) quit() {
 }
 
 func (s *server) Start() []error {
-	print(dog)
 	log.Print("Starting server ...")
 	errs := make([]error, 0)
 
@@ -150,10 +142,10 @@ func (s *server) Start() []error {
 	return errs
 }
 
-func NewServer(port int, store store.PetStore) Server {
+func NewServer(cfg config.CfgData, store store.PetStore) Server {
 	mux := http.NewServeMux()
 
-	addr := fmt.Sprintf(":%d", port)
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 
 	srv := server{
 		hs: &http.Server{

@@ -33,7 +33,7 @@ APP_PATH="./internal/app"
 
 default: build
 
-build: clean test
+build: clean cpycfg test
 	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
 test:
 	$(GOTEST) -v -cover -coverprofile=coverage.out $(APP_PATH)/...
@@ -44,5 +44,8 @@ clean:
 	rm -rf $(BUILD_DIR)
 format:
 	$(GOFORMAT) $(APP_PATH)/...
+cpycfg:
+	mkdir $(BUILD_DIR)
+	cp -r config/ $(BUILD_DIR)
 run: build
 	./$(BINARY_NAME)

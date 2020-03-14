@@ -20,42 +20,66 @@
  *  THE SOFTWARE.
  */
 
-package store
+package config
 
 import (
+	"encoding/json"
 	"errors"
-	"github.com/LearningByExample/go-microservice/internal/app/config"
-	"github.com/LearningByExample/go-microservice/internal/app/data"
-	"log"
+	"io/ioutil"
+	"os"
 )
-
-type PetStore interface {
-	AddPet(name string, race string, mod string) (int, error)
-	GetPet(id int) (data.Pet, error)
-	GetAllPets() ([]data.Pet, error)
-	DeletePet(id int) error
-	UpdatePet(id int, name string, race string, mod string) (bool, error)
-	Open() error
-	Close() error
-}
-
-type Provider func(cfg config.CfgData) PetStore
-type providersMap map[string]Provider
 
 var (
-	PetNotFound      = errors.New("can not find pet")
-	ProviderNotFound = errors.New("can not find provider")
-	providers        = make(providersMap)
+	ErrInvalidCfg = errors.New("invalid configuration")
 )
 
-func AddStore(name string, provider Provider) {
-	log.Printf("Add provider %q.", name)
-	providers[name] = provider
+type ServerCfg struct {
+	Port int `json:"port"`
 }
 
-func GetStore(cfg config.CfgData) (PetStore, error) {
-	if provider, found := providers[cfg.Store.Name]; found {
-		return provider(cfg), nil
+func (cfg ServerCfg) isValid() bool {
+	return cfg.Port != 0
+}
+
+type StoreCfg struct {
+	Name string `json:"name"`
+}
+
+func (cfg StoreCfg) isValid() bool {
+	return cfg.Name != ""
+}
+
+type CfgData struct {
+	Server ServerCfg `json:"server"`
+	Store  StoreCfg  `json:"store"`
+}
+
+func (cfg CfgData) isValid() bool {
+	return cfg.Server.isValid() && cfg.Store.isValid()
+}
+
+func GetConfig(path string) (CfgData, error) {
+	cfg := CfgData{
+		Server: ServerCfg{},
+		Store:  StoreCfg{},
 	}
-	return nil, ProviderNotFound
+
+	file, err := os.Open(path)
+
+	if file != nil && err == nil {
+		//noinspection GoUnhandledErrorResult
+		defer file.Close()
+		var bytes []byte
+		bytes, err = ioutil.ReadAll(file)
+		if err == nil {
+			err = json.Unmarshal(bytes, &cfg)
+			if err == nil {
+				if !cfg.isValid() {
+					err = ErrInvalidCfg
+				}
+			}
+		}
+	}
+
+	return cfg, err
 }
