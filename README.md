@@ -19,6 +19,28 @@ For running the tests you should do :
 $ make test
 ```
 
+Some tests requires to have PostgreSQL running with the following details :
+```text
+Server   : localhost
+Port     : 5432
+Database : pets
+User     : petuser
+Password : petpwd
+```
+
+If you have [docker](https://www.docker.com/products/docker-desktop) installed you could run a local database with this settings with :
+
+```shell script
+$ ./scripts/local-db.sh start
+```
+
+To stop the local database you could do  :
+
+```shell script
+$ ./scripts/local-db.sh stop
+```
+
+
 ## Example requests using HTTPie
 
 First install [HTTPie](https://httpie.org/doc#installation)
