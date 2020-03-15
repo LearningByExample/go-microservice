@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testDataFolder = "testdata"
-	postgreSQLFile = "postgresql.json"
+	testDataFolder    = "testdata"
+	postgreSQLFile    = "postgresql.json"
 	postgreSQLBadFile = "postgresql-bad.json"
 )
 
