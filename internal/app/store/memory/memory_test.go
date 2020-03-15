@@ -216,6 +216,21 @@ func TestGetPets(t *testing.T) {
 	}
 }
 
+func TestIdGeneration(t *testing.T) {
+	ps := NewInMemoryPetStore(config.CfgData{})
+
+	idDog, _ := ps.AddPet("Fluff", "dog", "happy")
+	_, _ = ps.AddPet("Lion", "cat", "brave")
+
+	_ = ps.DeletePet(idDog)
+
+	got, _ := ps.AddPet("Snowflake", "mouse", "nervous")
+	want := 3
+	if got != want {
+		t.Fatalf("id add fail want %v, got %v", want, got)
+	}
+}
+
 func TestConcurrency(t *testing.T) {
 
 	ps := NewInMemoryPetStore(config.CfgData{})

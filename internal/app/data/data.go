@@ -22,7 +22,10 @@
 
 package data
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type Pet struct {
 	Id   int    `json:"id"`
@@ -33,4 +36,17 @@ type Pet struct {
 
 func (p Pet) String() string {
 	return fmt.Sprintf("{ Id: %d, Name: %q, Race: %q, Mod: %q }", p.Id, p.Name, p.Race, p.Mod)
+}
+
+type PetMap map[int]Pet
+
+func (pm PetMap) Values() []Pet {
+	result := make([]Pet, 0, len(pm))
+	for k := range pm {
+		result = append(result, pm[k])
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Id < result[j].Id
+	})
+	return result
 }

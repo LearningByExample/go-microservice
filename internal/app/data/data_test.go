@@ -22,7 +22,10 @@
 
 package data
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestPet(t *testing.T) {
 	pet := Pet{
@@ -37,5 +40,24 @@ func TestPet(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("error get pet string got %v, want %v", got, want)
+	}
+}
+
+func TestSortValues(t *testing.T) {
+	pm := make(PetMap)
+
+	p1 := Pet{Id: 1}
+	p2 := Pet{Id: 2}
+	p3 := Pet{Id: 3}
+
+	pm[2] = p2
+	pm[3] = p3
+	pm[1] = p1
+
+	got := pm.Values()
+	want := []Pet{p1, p2, p3}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v want %v", got, want)
 	}
 }

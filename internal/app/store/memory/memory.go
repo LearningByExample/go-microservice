@@ -27,26 +27,18 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
-	"sort"
 	"sync"
 )
 
-type PetMap map[int]data.Pet
 type inMemoryPetStore struct {
-	pets PetMap
-	mu   sync.RWMutex
+	pets   data.PetMap
+	mu     sync.RWMutex
+	lastId int
 }
 
 const (
 	StoreName = "in-memory"
 )
-
-// byId implements sort.Interface for []data.Pet based on the Id field
-type ById []data.Pet
-
-func (a ById) Len() int           { return len(a) }
-func (a ById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 
 func (s *inMemoryPetStore) DeletePet(id int) error {
 	_, err := s.GetPet(id)
@@ -63,7 +55,8 @@ func (s *inMemoryPetStore) DeletePet(id int) error {
 func (s *inMemoryPetStore) AddPet(name string, race string, mod string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	id := len(s.pets) + 1
+	s.lastId++
+	id := s.lastId
 	s.pets[id] = data.Pet{Id: id, Name: name, Race: race, Mod: mod}
 	return id, nil
 }
@@ -84,12 +77,7 @@ func (s *inMemoryPetStore) GetPet(id int) (data.Pet, error) {
 func (s *inMemoryPetStore) GetAllPets() ([]data.Pet, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	result := make([]data.Pet, 0, len(s.pets))
-	for k := range s.pets {
-		result = append(result, s.pets[k])
-	}
-	sort.Sort(ById(result))
-	return result, nil
+	return s.pets.Values(), nil
 }
 
 func petEquals(p data.Pet, name string, race string, mod string) bool {
@@ -124,7 +112,8 @@ func (s inMemoryPetStore) Close() error {
 
 func NewInMemoryPetStore(_ config.CfgData) store.PetStore {
 	var petStore = inMemoryPetStore{
-		pets: make(PetMap),
+		pets:   make(data.PetMap),
+		lastId: 0,
 	}
 
 	return &petStore
