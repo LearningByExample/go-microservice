@@ -24,6 +24,8 @@ package psqlstore
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
@@ -31,49 +33,196 @@ import (
 	"log"
 )
 
-type pSqlPetStore struct {
+const (
+	connectionString = "host=%s port=%d sslmode=%s dbname=%s user=%s password=%s"
+)
+
+type posgreSQLPetStore struct {
 	cfg config.CfgData
 	db  *sql.DB
 }
 
-func (p pSqlPetStore) AddPet(name string, race string, mod string) (int, error) {
-	panic("implement me")
-}
+func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
+	var id = 0
+	var err error = nil
+	var tx *sql.Tx = nil
 
-func (p pSqlPetStore) GetPet(id int) (data.Pet, error) {
-	panic("implement me")
-}
-
-func (p pSqlPetStore) GetAllPets() ([]data.Pet, error) {
-	panic("implement me")
-}
-
-func (p pSqlPetStore) DeletePet(id int) error {
-	panic("implement me")
-}
-
-func (p pSqlPetStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
-	panic("implement me")
-}
-
-func (p *pSqlPetStore) Open() error {
-	connStr := "host=localhost port=5432 user=petuser password=petpwd dbname=pets sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
+	if tx, err = p.db.Begin(); err == nil {
+		if r := p.txQueryRow(tx, sqlInsertPet, name, race, mod); r != nil {
+			if err = r.Scan(&id); err == nil {
+				err = tx.Commit()
+			} else {
+				_ = tx.Rollback()
+			}
+		}
 	}
-	p.db = db
-	_, err = p.db.Exec(sqlVerify)
+
+	return id, err
+}
+
+func (p posgreSQLPetStore) GetPet(id int) (data.Pet, error) {
+	var err error = nil
+	var pet = data.Pet{}
+	if r := p.queryRow(sqlGetPet, id); r != nil {
+		err = r.Scan(&pet.Id, &pet.Name, &pet.Race, &pet.Mod)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = store.PetNotFound
+		}
+	}
+	return pet, err
+}
+
+func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
+	var err error = nil
+	var pets = make([]data.Pet, 0)
+	var r *sql.Rows
+
+	if r, err = p.query(sqlGetAllPets); err == nil {
+		//noinspection GoUnhandledErrorResult
+		defer r.Close()
+		for r.Next() {
+			var pet = data.Pet{}
+			if err = r.Scan(&pet.Id, &pet.Name, &pet.Race, &pet.Mod); err != nil {
+				break
+			}
+			pets = append(pets, pet)
+		}
+	}
+
+	return pets, err
+}
+
+func (p posgreSQLPetStore) DeletePet(id int) error {
+	var err error = nil
+	var r sql.Result = nil
+	var count int64 = 0
+	var tx *sql.Tx
+	if tx, err = p.db.Begin(); err == nil {
+		if r, err = p.txExec(tx, sqlDeletePet, id); err == nil {
+			if count, err = r.RowsAffected(); err == nil {
+				if count == 0 {
+					err = store.PetNotFound
+				}
+			}
+		}
+		if err == nil {
+			err = tx.Commit()
+		} else {
+			_ = tx.Rollback()
+		}
+	}
 
 	return err
 }
 
-func (p *pSqlPetStore) Close() error {
+func (p posgreSQLPetStore) verifyPetExists(id int) error {
+	var err error = nil
+	var petId = 0
+	if r := p.queryRow(sqlVerifyPetExists, id); r != nil {
+		err = r.Scan(&petId)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = store.PetNotFound
+		}
+	}
+	return err
+}
+
+func (p posgreSQLPetStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
+	var count int64 = 0
+	var err error = nil
+	var r sql.Result = nil
+	var tx *sql.Tx = nil
+
+	if err = p.verifyPetExists(id); err == nil {
+		if tx, err = p.db.Begin(); err == nil {
+			if r, err = p.txExec(tx, sqlUpdatePet, id, name, race, mod); err == nil {
+				count, err = r.RowsAffected()
+			}
+			if err == nil {
+				err = tx.Commit()
+			} else {
+				_ = tx.Rollback()
+			}
+		}
+	}
+	return count == 1, err
+}
+
+func (p *posgreSQLPetStore) openConnection() (*sql.DB, error) {
+	postgreSQLCfg := p.cfg.Store.Postgresql
+	connStr := fmt.Sprintf(connectionString,
+		postgreSQLCfg.Host,
+		postgreSQLCfg.Port,
+		postgreSQLCfg.SSLMode,
+		postgreSQLCfg.Database,
+		postgreSQLCfg.User,
+		postgreSQLCfg.Password,
+	)
+	return sql.Open(postgreSQLCfg.Driver, connStr)
+}
+
+func (p posgreSQLPetStore) checkConnection() error {
+	return p.db.Ping()
+}
+
+func (p posgreSQLPetStore) createTables() error {
+	_, err := p.exec(sqlCreateTable)
+	return err
+}
+
+func (p posgreSQLPetStore) exec(query string, args ...interface{}) (sql.Result, error) {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return p.db.Exec(query, args...)
+}
+
+func (p posgreSQLPetStore) txExec(tx *sql.Tx, query string, args ...interface{}) (sql.Result, error) {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return tx.Exec(query, args...)
+}
+
+func (p posgreSQLPetStore) queryRow(query string, args ...interface{}) *sql.Row {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return p.db.QueryRow(query, args...)
+}
+
+func (p posgreSQLPetStore) txQueryRow(tx *sql.Tx, query string, args ...interface{}) *sql.Row {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return tx.QueryRow(query, args...)
+}
+
+func (p posgreSQLPetStore) query(query string, args ...interface{}) (*sql.Rows, error) {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return p.db.Query(query, args...)
+}
+
+func (p *posgreSQLPetStore) Open() error {
+	var err error = nil
+
+	if p.db, err = p.openConnection(); err == nil {
+		if err = p.checkConnection(); err == nil {
+			err = p.createTables()
+		}
+	}
+
+	return err
+}
+
+func (p posgreSQLPetStore) Close() error {
 	return p.db.Close()
 }
 
 func NewPostgresSQLPetStore(cfg config.CfgData) store.PetStore {
-	result := pSqlPetStore{
+	result := posgreSQLPetStore{
 		cfg: cfg,
 		db:  nil,
 	}

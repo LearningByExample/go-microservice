@@ -1,0 +1,18 @@
+{
+	"server": {
+		"port": 8080
+	},
+	"store": {
+		"name": "postgreSQL",
+		"postgresql": {
+			"driver": "postgresdriver",
+			"host": "hosttest",
+			"port": 10,
+			"ssl-mode": "sslmode",
+			"database": "petstest",
+			"user": "usertest",
+			"password": "usertest",
+			"log-queries" : false
+		}
+	}
+}

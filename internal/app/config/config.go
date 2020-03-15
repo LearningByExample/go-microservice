@@ -42,11 +42,28 @@ func (cfg ServerCfg) isValid() bool {
 }
 
 type StoreCfg struct {
-	Name string `json:"name"`
+	Name       string        `json:"name"`
+	Postgresql PostgreSQLCfg `json:"postgresql"`
 }
 
 func (cfg StoreCfg) isValid() bool {
-	return cfg.Name != ""
+	return cfg.Name != "" && !(cfg.Name == "postgreSQL" && !cfg.Postgresql.isValid())
+}
+
+type PostgreSQLCfg struct {
+	Driver     string `json:"driver"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	SSLMode    string `json:"ssl-mode"`
+	Database   string `json:"database"`
+	User       string `json:"user"`
+	Password   string `json:"password"`
+	LogQueries bool   `json:"log-queries"`
+}
+
+func (cfg PostgreSQLCfg) isValid() bool {
+	return cfg.Driver != "" && cfg.Host != "" && cfg.Port != 0 && cfg.SSLMode != "" &&
+		cfg.Database != "" && cfg.User != "" && cfg.Password != ""
 }
 
 type CfgData struct {
