@@ -24,6 +24,7 @@ package psqlstore
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
@@ -57,8 +58,10 @@ func (p pSqlPetStore) UpdatePet(id int, name string, race string, mod string) (b
 }
 
 func (p *pSqlPetStore) Open() error {
-	connStr := "host=localhost port=5432 user=petuser password=petpwd dbname=pets sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	postgreSQLCfg := p.cfg.Store.Postgresql
+	connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+		postgreSQLCfg.Host, postgreSQLCfg.Port, postgreSQLCfg.Database, postgreSQLCfg.User, postgreSQLCfg.Password)
+	db, err := sql.Open(postgreSQLCfg.Driver, connStr)
 	if err != nil {
 		log.Fatal(err)
 	}

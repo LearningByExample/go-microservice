@@ -1,0 +1,16 @@
+{
+	"server": {
+		"port": 8080
+	},
+	"store": {
+		"name": "postgreSQL",
+		"postgresql": {
+			"driver": "postgres",
+			"host": "localhost",
+			"port": 5432,
+			"database": "pets",
+			"user": "petuser",
+			"password": "petpwd"
+		}
+	}
+}

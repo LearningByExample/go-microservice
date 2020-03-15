@@ -24,7 +24,14 @@ package psqlstore
 
 import (
 	"github.com/LearningByExample/go-microservice/internal/app/config"
+	"path/filepath"
 	"testing"
+)
+
+const (
+	testDataFolder = "testdata"
+	postgreSQLFile = "postgresql.json"
+	postgreSQLBadFile = "postgresql-bad.json"
 )
 
 func TestNewPostgresSQLPetStore(t *testing.T) {
@@ -37,16 +44,36 @@ func TestNewPostgresSQLPetStore(t *testing.T) {
 }
 
 func TestPSqlPetStore_OpenClose(t *testing.T) {
-	cfg := config.CfgData{}
-	store := NewPostgresSQLPetStore(cfg)
 
-	err := store.Open()
-	if err != nil {
-		t.Fatalf("want no error on open, got %v", err)
-	}
+	t.Run("should work", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, postgreSQLFile)
+		cfg, _ := config.GetConfig(path)
+		store := NewPostgresSQLPetStore(cfg)
 
-	err = store.Close()
-	if err != nil {
-		t.Fatalf("want no error on close, got %v", err)
-	}
+		err := store.Open()
+		if err != nil {
+			t.Fatalf("want no error on open, got %v", err)
+		}
+
+		err = store.Close()
+		if err != nil {
+			t.Fatalf("want no error on close, got %v", err)
+		}
+	})
+
+	t.Run("should fail", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, postgreSQLBadFile)
+		cfg, _ := config.GetConfig(path)
+		store := NewPostgresSQLPetStore(cfg)
+
+		err := store.Open()
+		if err == nil {
+			t.Fatalf("want an error on open, got nil")
+		}
+
+		err = store.Close()
+		if err != nil {
+			t.Fatalf("want no error on close, got %v", err)
+		}
+	})
 }
