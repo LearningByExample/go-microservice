@@ -81,7 +81,7 @@ func TestMainWithInvalidPort(t *testing.T) {
 	os.Args = oldArgs
 	logFatal = savedLogFatal
 
-	if err == config.ErrInvalidCfg {
+	if err == config.InvalidCfg {
 		t.Fatalf("we should got invalid config, got %v", err)
 	}
 }

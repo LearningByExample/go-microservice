@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	ErrInvalidCfg = errors.New("invalid configuration")
+	InvalidCfg = errors.New("invalid configuration")
 )
 
 type ServerCfg struct {
@@ -75,7 +75,7 @@ func GetConfig(path string) (CfgData, error) {
 			err = json.Unmarshal(bytes, &cfg)
 			if err == nil {
 				if !cfg.isValid() {
-					err = ErrInvalidCfg
+					err = InvalidCfg
 				}
 			}
 		}

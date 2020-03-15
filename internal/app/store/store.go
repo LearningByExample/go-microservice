@@ -48,12 +48,12 @@ var (
 	providers        = make(providersMap)
 )
 
-func AddStore(name string, provider Provider) {
+func AddProvider(name string, provider Provider) {
 	log.Printf("Add provider %q.", name)
 	providers[name] = provider
 }
 
-func GetStore(cfg config.CfgData) (PetStore, error) {
+func GetStoreFromProvider(cfg config.CfgData) (PetStore, error) {
 	if provider, found := providers[cfg.Store.Name]; found {
 		return provider(cfg), nil
 	}
