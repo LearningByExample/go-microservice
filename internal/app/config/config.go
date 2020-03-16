@@ -54,13 +54,14 @@ type PostgreSQLCfg struct {
 	Driver   string `json:"driver"`
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
+	SSLMode  string `json:"ssl-mode"`
 	Database string `json:"database"`
 	User     string `json:"user"`
 	Password string `json:"password"`
 }
 
 func (cfg PostgreSQLCfg) isValid() bool {
-	return cfg.Driver != "" && cfg.Host != "" && cfg.Port != 0 &&
+	return cfg.Driver != "" && cfg.Host != "" && cfg.Port != 0 && cfg.SSLMode != "" &&
 		cfg.Database != "" && cfg.User != "" && cfg.Password != ""
 }
 
