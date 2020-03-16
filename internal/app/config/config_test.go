@@ -28,12 +28,13 @@ import (
 )
 
 const (
-	testDataFolder = "testdata"
-	cfgFile        = "cfg.json"
-	postgreSQLFile = "postgresql.json"
-	badFile        = "bad.json"
-	invalidFile    = "invalid.json"
-	wrongPath      = "wrong"
+	testDataFolder    = "testdata"
+	cfgFile           = "cfg.json"
+	postgreSQLFile    = "postgresql.json"
+	badPostgreSQLFile = "bad-postgresql.json"
+	badFile           = "bad.json"
+	invalidFile       = "invalid.json"
+	wrongPath         = "wrong"
 )
 
 func TestGetConfig(t *testing.T) {
@@ -52,6 +53,15 @@ func TestGetConfig(t *testing.T) {
 
 		if err != nil {
 			t.Fatalf("wan't not error got %v", err)
+		}
+	})
+
+	t.Run("should fail with wrong postgreSQL config", func(t *testing.T) {
+		path := filepath.Join(testDataFolder, badPostgreSQLFile)
+		_, err := GetConfig(path)
+
+		if err == nil {
+			t.Fatal("want error got nil")
 		}
 	})
 
