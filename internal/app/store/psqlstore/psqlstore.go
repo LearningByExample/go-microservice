@@ -32,6 +32,10 @@ import (
 	"log"
 )
 
+const (
+	connectionString = "host=%s port=%d sslmode=%s dbname=%s user=%s password=%s"
+)
+
 type pSqlPetStore struct {
 	cfg config.CfgData
 	db  *sql.DB
@@ -59,8 +63,14 @@ func (p pSqlPetStore) UpdatePet(id int, name string, race string, mod string) (b
 
 func (p *pSqlPetStore) Open() error {
 	postgreSQLCfg := p.cfg.Store.Postgresql
-	connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
-		postgreSQLCfg.Host, postgreSQLCfg.Port, postgreSQLCfg.Database, postgreSQLCfg.User, postgreSQLCfg.Password)
+	connStr := fmt.Sprintf(connectionString,
+		postgreSQLCfg.Host,
+		postgreSQLCfg.Port,
+		postgreSQLCfg.SSLMode,
+		postgreSQLCfg.Database,
+		postgreSQLCfg.User,
+		postgreSQLCfg.Password,
+	)
 	db, err := sql.Open(postgreSQLCfg.Driver, connStr)
 	if err != nil {
 		log.Fatal(err)
