@@ -11,7 +11,8 @@
 			"ssl-mode": "sslmode",
 			"database": "petstest",
 			"user": "usertest",
-			"password": "usertest"
+			"password": "usertest",
+			"log-queries" : false
 		}
 	}
 }

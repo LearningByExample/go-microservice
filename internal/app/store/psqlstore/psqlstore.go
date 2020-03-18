@@ -29,6 +29,7 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	_ "github.com/lib/pq"
+	"log"
 )
 
 const (
@@ -74,12 +75,19 @@ func (p pSqlPetStore) openConnection() (*sql.DB, error) {
 }
 
 func (p pSqlPetStore) checkConnection() error {
-	_, err := p.db.Exec(sqlVerify)
-	return err
+	return p.exec(sqlVerify)
 }
 
 func (p pSqlPetStore) createTables() error {
-	_, err := p.db.Exec(sqlCreateTable)
+	return p.exec(sqlCreateTable)
+}
+
+func (p pSqlPetStore) exec(query string, args ...interface{}) error {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:")
+		log.Println(query, args)
+	}
+	_, err := p.db.Exec(query, args...)
 	return err
 }
 

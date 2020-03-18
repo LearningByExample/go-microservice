@@ -11,7 +11,8 @@
 			"port": 5432,
 			"database": "pets",
 			"user": "petuser",
-			"password": "petpwd"
+			"password": "petpwd",
+			"log-queries" : true
 		}
 	}
 }

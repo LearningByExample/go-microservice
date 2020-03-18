@@ -51,13 +51,14 @@ func (cfg StoreCfg) isValid() bool {
 }
 
 type PostgreSQLCfg struct {
-	Driver   string `json:"driver"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	SSLMode  string `json:"ssl-mode"`
-	Database string `json:"database"`
-	User     string `json:"user"`
-	Password string `json:"password"`
+	Driver     string `json:"driver"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	SSLMode    string `json:"ssl-mode"`
+	Database   string `json:"database"`
+	User       string `json:"user"`
+	Password   string `json:"password"`
+	LogQueries bool   `json:"log-queries"`
 }
 
 func (cfg PostgreSQLCfg) isValid() bool {
