@@ -23,5 +23,12 @@
 package psqlstore
 
 const (
-	sqlVerify = "SELECT 1;"
+	sqlVerify      = "SELECT 1;"
+	sqlCreateTable = `
+		CREATE TABLE IF NOT EXISTS pets (
+			id SERIAL PRIMARY KEY,
+			name varchar(45) NOT NULL,
+			mod varchar(25) NOT NULL,
+			race varchar(25) NOT NULL
+		);`
 )

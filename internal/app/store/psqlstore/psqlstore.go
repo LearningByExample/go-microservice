@@ -29,7 +29,6 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	_ "github.com/lib/pq"
-	"log"
 )
 
 const (
@@ -61,7 +60,7 @@ func (p pSqlPetStore) UpdatePet(id int, name string, race string, mod string) (b
 	panic("implement me")
 }
 
-func (p *pSqlPetStore) Open() error {
+func (p pSqlPetStore) openConnection() (*sql.DB, error) {
 	postgreSQLCfg := p.cfg.Store.Postgresql
 	connStr := fmt.Sprintf(connectionString,
 		postgreSQLCfg.Host,
@@ -71,17 +70,32 @@ func (p *pSqlPetStore) Open() error {
 		postgreSQLCfg.User,
 		postgreSQLCfg.Password,
 	)
-	db, err := sql.Open(postgreSQLCfg.Driver, connStr)
-	if err != nil {
-		log.Fatal(err)
+	return sql.Open(postgreSQLCfg.Driver, connStr)
+}
+
+func (p pSqlPetStore) checkConnection() error {
+	_, err := p.db.Exec(sqlVerify)
+	return err
+}
+
+func (p pSqlPetStore) createTables() error {
+	_, err := p.db.Exec(sqlCreateTable)
+	return err
+}
+
+func (p *pSqlPetStore) Open() error {
+	var err error = nil
+
+	if p.db, err = p.openConnection(); err == nil {
+		if err = p.checkConnection(); err == nil {
+			err = p.createTables()
+		}
 	}
-	p.db = db
-	_, err = p.db.Exec(sqlVerify)
 
 	return err
 }
 
-func (p *pSqlPetStore) Close() error {
+func (p pSqlPetStore) Close() error {
 	return p.db.Close()
 }
 
