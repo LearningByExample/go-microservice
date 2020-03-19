@@ -64,7 +64,23 @@ func (p posgreSQLPetStore) GetPet(id int) (data.Pet, error) {
 }
 
 func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
-	panic("implement me")
+	var err error = nil
+	var pets = make([]data.Pet, 0)
+	var r *sql.Rows
+
+	if r, err = p.query(sqlGetAllPets); err == nil {
+		//noinspection GoUnhandledErrorResult
+		defer r.Close()
+		for r.Next() {
+			var pet = data.Pet{}
+			if err = r.Scan(&pet.Id, &pet.Name, &pet.Race, &pet.Mod); err != nil {
+				break
+			}
+			pets = append(pets, pet)
+		}
+	}
+
+	return pets, err
 }
 
 func (p posgreSQLPetStore) DeletePet(id int) error {
@@ -110,6 +126,13 @@ func (p posgreSQLPetStore) queryRow(query string, args ...interface{}) *sql.Row 
 		log.Println("SQL query:", query, args)
 	}
 	return p.db.QueryRow(query, args...)
+}
+
+func (p posgreSQLPetStore) query(query string, args ...interface{}) (*sql.Rows, error) {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return p.db.Query(query, args...)
 }
 
 func (p *posgreSQLPetStore) Open() error {

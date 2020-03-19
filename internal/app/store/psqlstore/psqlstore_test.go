@@ -162,3 +162,53 @@ func TestPSqlPetStore_GetPet(t *testing.T) {
 		}
 	})
 }
+
+func TestPosgreSQLPetStore_GetAllPets(t *testing.T) {
+	defer resetDB()
+	ps := getDefaultPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	t.Run("should return empty slice", func(t *testing.T) {
+		got, err := ps.GetAllPets()
+		want := make([]data.Pet, 0)
+
+		if err != nil {
+			t.Fatalf("error on get all pets got %v, want nil", err)
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("error getting all pets got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("should return two pets", func(t *testing.T) {
+		idDog, _ := ps.AddPet("Fluff", "dog", "happy")
+		idCat, _ := ps.AddPet("Lion", "cat", "brave")
+
+		got, err := ps.GetAllPets()
+		want := []data.Pet{
+			{
+				Id:   idDog,
+				Name: "Fluff",
+				Race: "dog",
+				Mod:  "happy",
+			},
+			{
+				Id:   idCat,
+				Name: "Lion",
+				Race: "cat",
+				Mod:  "brave",
+			},
+		}
+
+		if err != nil {
+			t.Fatalf("error on get all pets got %v, want nil", err)
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("error getting all pets got %v, want %v", got, want)
+		}
+	})
+}

@@ -45,4 +45,11 @@ const (
 			pets
 		WHERE
 			id = $1;`
+	sqlGetAllPets = `
+		SELECT
+			id, name, mod, race
+		FROM
+			pets
+		ORDER BY
+			id ASC;`
 )
