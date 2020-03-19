@@ -36,32 +36,37 @@ const (
 	connectionString = "host=%s port=%d sslmode=%s dbname=%s user=%s password=%s"
 )
 
-type pSqlPetStore struct {
+type posgreSQLPetStore struct {
 	cfg config.CfgData
 	db  *sql.DB
 }
 
-func (p pSqlPetStore) AddPet(name string, race string, mod string) (int, error) {
+func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
+	var id = 0
+	var err error = nil
+	if r := p.queryRow(sqlInsertPet, name, race, mod); r != nil {
+		err = r.Scan(&id)
+	}
+	return id, err
+}
+
+func (p posgreSQLPetStore) GetPet(id int) (data.Pet, error) {
 	panic("implement me")
 }
 
-func (p pSqlPetStore) GetPet(id int) (data.Pet, error) {
+func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
 	panic("implement me")
 }
 
-func (p pSqlPetStore) GetAllPets() ([]data.Pet, error) {
+func (p posgreSQLPetStore) DeletePet(id int) error {
 	panic("implement me")
 }
 
-func (p pSqlPetStore) DeletePet(id int) error {
+func (p posgreSQLPetStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
 	panic("implement me")
 }
 
-func (p pSqlPetStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
-	panic("implement me")
-}
-
-func (p pSqlPetStore) openConnection() (*sql.DB, error) {
+func (p *posgreSQLPetStore) openConnection() (*sql.DB, error) {
 	postgreSQLCfg := p.cfg.Store.Postgresql
 	connStr := fmt.Sprintf(connectionString,
 		postgreSQLCfg.Host,
@@ -74,24 +79,31 @@ func (p pSqlPetStore) openConnection() (*sql.DB, error) {
 	return sql.Open(postgreSQLCfg.Driver, connStr)
 }
 
-func (p pSqlPetStore) checkConnection() error {
-	return p.exec(sqlVerify)
-}
-
-func (p pSqlPetStore) createTables() error {
-	return p.exec(sqlCreateTable)
-}
-
-func (p pSqlPetStore) exec(query string, args ...interface{}) error {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:")
-		log.Println(query, args)
-	}
-	_, err := p.db.Exec(query, args...)
+func (p posgreSQLPetStore) checkConnection() error {
+	_, err := p.exec(sqlVerify)
 	return err
 }
 
-func (p *pSqlPetStore) Open() error {
+func (p posgreSQLPetStore) createTables() error {
+	_, err := p.exec(sqlCreateTable)
+	return err
+}
+
+func (p posgreSQLPetStore) exec(query string, args ...interface{}) (sql.Result, error) {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return p.db.Exec(query, args...)
+}
+
+func (p posgreSQLPetStore) queryRow(query string, args ...interface{}) *sql.Row {
+	if p.cfg.Store.Postgresql.LogQueries {
+		log.Println("SQL query:", query, args)
+	}
+	return p.db.QueryRow(query, args...)
+}
+
+func (p *posgreSQLPetStore) Open() error {
 	var err error = nil
 
 	if p.db, err = p.openConnection(); err == nil {
@@ -103,12 +115,12 @@ func (p *pSqlPetStore) Open() error {
 	return err
 }
 
-func (p pSqlPetStore) Close() error {
+func (p posgreSQLPetStore) Close() error {
 	return p.db.Close()
 }
 
 func NewPostgresSQLPetStore(cfg config.CfgData) store.PetStore {
-	result := pSqlPetStore{
+	result := posgreSQLPetStore{
 		cfg: cfg,
 		db:  nil,
 	}

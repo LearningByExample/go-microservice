@@ -31,4 +31,11 @@ const (
 			mod varchar(25) NOT NULL,
 			race varchar(25) NOT NULL
 		);`
+	sqlInsertPet = `
+		INSERT INTO pets
+			(name, mod, race)
+		VALUES
+			($1, $2, $3)
+		RETURNING
+			id;`
 )

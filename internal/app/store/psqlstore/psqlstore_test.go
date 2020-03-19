@@ -32,48 +32,93 @@ const (
 	testDataFolder    = "testdata"
 	postgreSQLFile    = "postgresql.json"
 	postgreSQLBadFile = "postgresql-bad.json"
+	sqlResetDB        = "DROP TABLE PETS"
 )
+
+func getPetStore(cfgFile string) *posgreSQLPetStore {
+	path := filepath.Join(testDataFolder, cfgFile)
+	cfg, _ := config.GetConfig(path)
+	ps := NewPostgresSQLPetStore(cfg).(*posgreSQLPetStore)
+	return ps
+}
+
+func getDefaultPetStore() *posgreSQLPetStore {
+	return getPetStore(postgreSQLFile)
+}
+
+func runTestSQL(sql string) {
+	ps := getDefaultPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	_, _ = ps.exec(sql)
+}
+
+func resetDB() {
+	runTestSQL(sqlResetDB)
+}
+
+func TestMain(m *testing.M) {
+	resetDB()
+	m.Run()
+}
 
 func TestNewPostgresSQLPetStore(t *testing.T) {
 	cfg := config.CfgData{}
-	store := NewPostgresSQLPetStore(cfg)
+	ps := NewPostgresSQLPetStore(cfg)
 
-	if store == nil {
+	if ps == nil {
 		t.Fatalf("want store, got nil")
 	}
 }
 
 func TestPSqlPetStore_OpenClose(t *testing.T) {
-
+	defer resetDB()
 	t.Run("should work", func(t *testing.T) {
-		path := filepath.Join(testDataFolder, postgreSQLFile)
-		cfg, _ := config.GetConfig(path)
-		store := NewPostgresSQLPetStore(cfg)
+		ps := getPetStore(postgreSQLFile)
 
-		err := store.Open()
+		err := ps.Open()
 		if err != nil {
-			t.Fatalf("want no error on open, got %v", err)
+			t.Fatalf("error on open got %v, want nil", err)
 		}
 
-		err = store.Close()
+		err = ps.Close()
 		if err != nil {
-			t.Fatalf("want no error on close, got %v", err)
+			t.Fatalf("error on close got %v, want nil", err)
 		}
 	})
 
 	t.Run("should fail", func(t *testing.T) {
-		path := filepath.Join(testDataFolder, postgreSQLBadFile)
-		cfg, _ := config.GetConfig(path)
-		store := NewPostgresSQLPetStore(cfg)
+		ps := getPetStore(postgreSQLBadFile)
 
-		err := store.Open()
+		err := ps.Open()
 		if err == nil {
-			t.Fatalf("want an error on open, got nil")
+			t.Fatal("error on open got nil, want error")
 		}
 
-		err = store.Close()
+		err = ps.Close()
 		if err != nil {
-			t.Fatalf("want no error on close, got %v", err)
+			t.Fatalf("error on close got %v, want nil", err)
 		}
 	})
+}
+
+func TestPSqlPetStore_AddPet(t *testing.T) {
+	defer resetDB()
+	ps := getDefaultPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	got, err := ps.AddPet("Fluff", "dog", "happy")
+
+	if err != nil {
+		t.Fatalf("error on add pet got %v, want nil", err)
+	}
+
+	want := 1
+	if got != want {
+		t.Fatalf("error inserting pet got %d, want %d", got, want)
+	}
 }
