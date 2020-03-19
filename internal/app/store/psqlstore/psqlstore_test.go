@@ -24,7 +24,10 @@ package psqlstore
 
 import (
 	"github.com/LearningByExample/go-microservice/internal/app/config"
+	"github.com/LearningByExample/go-microservice/internal/app/data"
+	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -121,4 +124,41 @@ func TestPSqlPetStore_AddPet(t *testing.T) {
 	if got != want {
 		t.Fatalf("error inserting pet got %d, want %d", got, want)
 	}
+}
+
+func TestPSqlPetStore_GetPet(t *testing.T) {
+	defer resetDB()
+	ps := getDefaultPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	_, _ = ps.AddPet("Fluff", "dog", "happy")
+
+	t.Run("we should find the pet", func(t *testing.T) {
+		got, err := ps.GetPet(1)
+
+		if err != nil {
+			t.Fatalf("error on get pet got %v, want nil", err)
+		}
+
+		want := data.Pet{
+			Id:   1,
+			Name: "Fluff",
+			Race: "dog",
+			Mod:  "happy",
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("error getting pet got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("we should not find the pet", func(t *testing.T) {
+		_, err := ps.GetPet(2)
+
+		if err != store.PetNotFound {
+			t.Fatalf("error getting pet got %q, want not found", err)
+		}
+	})
 }

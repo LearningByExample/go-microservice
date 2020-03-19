@@ -38,4 +38,11 @@ const (
 			($1, $2, $3)
 		RETURNING
 			id;`
+	sqlGetPet = `
+		SELECT
+			id, name, mod, race
+		FROM
+			pets
+		WHERE
+			id = $1;`
 )

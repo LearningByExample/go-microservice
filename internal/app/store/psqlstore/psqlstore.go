@@ -24,6 +24,7 @@ package psqlstore
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
@@ -51,7 +52,15 @@ func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, er
 }
 
 func (p posgreSQLPetStore) GetPet(id int) (data.Pet, error) {
-	panic("implement me")
+	var err error = nil
+	var pet = data.Pet{}
+	if r := p.queryRow(sqlGetPet, id); r != nil {
+		err = r.Scan(&pet.Id, &pet.Name, &pet.Race, &pet.Mod)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = store.PetNotFound
+		}
+	}
+	return pet, err
 }
 
 func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
