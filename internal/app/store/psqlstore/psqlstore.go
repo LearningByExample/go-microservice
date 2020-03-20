@@ -87,8 +87,30 @@ func (p posgreSQLPetStore) DeletePet(id int) error {
 	panic("implement me")
 }
 
+func verifyPetExists(p posgreSQLPetStore, id int) error {
+	var err error = nil
+	var petId int
+	if r := p.queryRow(sqlVerifyPetExists, id); r != nil {
+		err = r.Scan(&petId)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = store.PetNotFound
+		}
+	}
+	return err
+}
+
 func (p posgreSQLPetStore) UpdatePet(id int, name string, race string, mod string) (bool, error) {
-	panic("implement me")
+	var count int64 = 0
+	var err error = nil
+	var r sql.Result
+
+	if err = verifyPetExists(p, id); err == nil {
+		if r, err = p.exec(sqlUpdatePet, id, name, race, mod); err == nil {
+			count, err = r.RowsAffected()
+		}
+	}
+
+	return  count == 1, err
 }
 
 func (p *posgreSQLPetStore) openConnection() (*sql.DB, error) {
