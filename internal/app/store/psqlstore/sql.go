@@ -83,8 +83,14 @@ const (
 			race 	= $3,
 			mod 	= $4
 		WHERE
-			id 		=	$1 AND
-			name 	<> 	$2 AND
-			race 	<> 	$3 AND
-			mod 	<> 	$4;`
+			id = $1 AND
+			name <> $2 AND
+			race <> $3 AND
+			mod <> $4;`
+	sqlDeletePet = `
+		DELETE
+		FROM
+			pets
+		WHERE
+			id = $1;`
 )
