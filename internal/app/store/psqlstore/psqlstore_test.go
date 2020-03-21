@@ -181,7 +181,6 @@ func TestPosgreSQLPetStore_UpdatePet(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			got, err := ps.UpdatePet(tt.id, tt.pet.Name, tt.pet.Race, tt.pet.Mod)
 			if err != tt.err {
 				t.Fatalf("want err %q, got %q", tt.err, err)
@@ -190,15 +189,12 @@ func TestPosgreSQLPetStore_UpdatePet(t *testing.T) {
 			if got != tt.change {
 				t.Fatalf("want %v, got %v", tt.change, got)
 			}
-
 			if tt.change {
 				pet, _ := ps.GetPet(1)
 				if !petEquals(pet, tt.pet.Name, tt.pet.Race, tt.pet.Mod) {
 					t.Fatalf("pet was not update correctly")
 				}
-
 			}
-
 		})
 	}
 }

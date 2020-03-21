@@ -23,7 +23,6 @@
 package psqlstore
 
 const (
-	sqlVerify      = "SELECT 1;"
 	sqlVerifyPetExists = `
 		SELECT
 			id
@@ -32,29 +31,46 @@ const (
 		WHERE
 			id = $1;`
 	sqlCreateTable = `
-		CREATE TABLE IF NOT EXISTS pets (
-			id SERIAL PRIMARY KEY,
-			name varchar(45) NOT NULL,
-			mod varchar(25) NOT NULL,
-			race varchar(25) NOT NULL
-		);`
+		CREATE TABLE IF NOT EXISTS
+			pets
+			(
+				id 		SERIAL 		PRIMARY KEY,
+				name	varchar(45) NOT NULL,
+				mod 	varchar(25) NOT NULL,
+				race 	varchar(25) NOT NULL
+			);`
 	sqlInsertPet = `
-		INSERT INTO pets
-			(name, race, mod)
+		INSERT INTO
+			pets
+			(
+				name,
+				race,
+				mod
+			)
 		VALUES
-			($1, $2, $3)
+			(
+				$1,
+				$2,
+				$3
+			)
 		RETURNING
 			id;`
 	sqlGetPet = `
 		SELECT
-			id, name, race, mod
+			id,
+			name,
+			race,
+			mod
 		FROM
 			pets
 		WHERE
 			id = $1;`
 	sqlGetAllPets = `
 		SELECT
-			id, name, race, mod
+			id,
+			name,
+			race,
+			mod
 		FROM
 			pets
 		ORDER BY
@@ -63,12 +79,12 @@ const (
 		UPDATE
 			pets
 		SET
-			name = $2,
-			race = $3,
-			mod = $4
+			name 	= $2,
+			race 	= $3,
+			mod 	= $4
 		WHERE
-			id = $1
-			AND name <> $2
-			AND race <> $3
-			AND mod <> $4;`
+			id 		=	$1 AND
+			name 	<> 	$2 AND
+			race 	<> 	$3 AND
+			mod 	<> 	$4;`
 )
