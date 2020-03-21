@@ -85,13 +85,15 @@ func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
 
 func (p posgreSQLPetStore) DeletePet(id int) error {
 	var err error = nil
-	var r sql.Result
+	var r sql.Result = nil
 	var count int64 = 0
 
-	r, err = p.exec(sqlDeletePet, id)
-	count, err = r.RowsAffected()
-	if count == 0 {
-		err = store.PetNotFound
+	if r, err = p.exec(sqlDeletePet, id); err == nil {
+		if count, err = r.RowsAffected(); err == nil {
+			if count == 0 {
+				err = store.PetNotFound
+			}
+		}
 	}
 
 	return err
