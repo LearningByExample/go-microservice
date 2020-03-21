@@ -199,6 +199,41 @@ func TestPosgreSQLPetStore_UpdatePet(t *testing.T) {
 	}
 }
 
+func TestPosgreSQLPetStore_DeletePet(t *testing.T) {
+	defer resetDB()
+	ps := getDefaultPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	_, _ = ps.AddPet("Fluffy", "dog", "happy")
+
+	t.Run("we could delete a existing pet", func(t *testing.T) {
+		got := ps.DeletePet(1)
+		if got != nil {
+			t.Fatalf("want nil, got %v", got)
+		}
+	})
+
+	t.Run("we could not find a deleted pet", func(t *testing.T) {
+		_, got := ps.GetPet(1)
+		want := store.PetNotFound
+		if got != want {
+			t.Fatalf("want %v, got %v", want, got)
+		}
+	})
+
+	t.Run("we could not delete a not existing pet", func(t *testing.T) {
+		got := ps.DeletePet(1)
+		want := store.PetNotFound
+		if got != want {
+			t.Fatalf("want %v, got %v", want, got)
+		}
+	})
+
+	_ = ps.Close()
+}
+
 func TestPSqlPetStore_GetPet(t *testing.T) {
 	defer resetDB()
 	ps := getDefaultPetStore()
