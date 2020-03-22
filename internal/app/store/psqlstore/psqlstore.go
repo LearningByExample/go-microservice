@@ -35,6 +35,7 @@ import (
 
 const (
 	connectionString = "host=%s port=%d sslmode=%s dbname=%s user=%s password=%s"
+	StoreName        = "postgreSQL"
 )
 
 type posgreSQLPetStore struct {

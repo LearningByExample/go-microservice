@@ -29,6 +29,7 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/server"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"github.com/LearningByExample/go-microservice/internal/app/store/memory"
+	"github.com/LearningByExample/go-microservice/internal/app/store/psqlstore"
 	"log"
 )
 
@@ -49,6 +50,7 @@ o-''|\_____/)
 
 func addProviders() {
 	store.AddProvider(memory.StoreName, memory.NewInMemoryPetStore)
+	store.AddProvider(psqlstore.StoreName, psqlstore.NewPostgresSQLPetStore)
 }
 
 func run(cfgPath string) error {
