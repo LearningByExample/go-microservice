@@ -30,12 +30,13 @@ GORUN=$(GOCMD) run
 BUILD_DIR=build
 BINARY_NAME=$(BUILD_DIR)/go-microservice
 APP_PATH="./internal/app"
-
 default: build
 
 build: clean cpycfg test
 	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
 test:
+	$(GOTEST) -short -v -cover -coverprofile=coverage.out $(APP_PATH)/...
+integration:
 	$(GOTEST) -v -cover -coverprofile=coverage.out $(APP_PATH)/...
 coverage: test
 	$(COVERAGE) -html=coverage.out
@@ -46,6 +47,7 @@ format:
 	$(GOFORMAT) $(APP_PATH)/...
 cpycfg:
 	mkdir $(BUILD_DIR)
-	cp -r config/ $(BUILD_DIR)
+	mkdir $(BUILD_DIR)/config
+	cp -r config/ $(BUILD_DIR)/config
 run: build
 	./$(BINARY_NAME)

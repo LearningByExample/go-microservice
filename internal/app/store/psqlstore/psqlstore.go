@@ -23,6 +23,7 @@
 package psqlstore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -38,9 +39,13 @@ const (
 	StoreName        = "postgreSQL"
 )
 
+type conFunc func(driverName, dataSourceName string) (*sql.DB, error)
+
 type posgreSQLPetStore struct {
-	cfg config.CfgData
-	db  *sql.DB
+	cfg    config.CfgData
+	db     *sql.DB
+	logger func(v ...interface{})
+	open   conFunc
 }
 
 func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
@@ -48,7 +53,7 @@ func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, er
 	var err error = nil
 	var tx *sql.Tx = nil
 
-	if tx, err = p.db.Begin(); err == nil {
+	if tx, err = p.beginTransaction(); err == nil {
 		if r := p.txQueryRow(tx, sqlInsertPet, name, race, mod); r != nil {
 			if err = r.Scan(&id); err == nil {
 				err = tx.Commit()
@@ -93,23 +98,31 @@ func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
 	return pets, err
 }
 
+func (p posgreSQLPetStore) beginTransaction() (*sql.Tx, error) {
+	ops := sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  false,
+	}
+	return p.db.BeginTx(context.Background(), &ops)
+}
+
 func (p posgreSQLPetStore) DeletePet(id int) error {
 	var err error = nil
 	var r sql.Result = nil
 	var count int64 = 0
 	var tx *sql.Tx
-	if tx, err = p.db.Begin(); err == nil {
+	if tx, err = p.beginTransaction(); err == nil {
 		if r, err = p.txExec(tx, sqlDeletePet, id); err == nil {
 			if count, err = r.RowsAffected(); err == nil {
 				if count == 0 {
 					err = store.PetNotFound
+					_ = tx.Rollback()
+				} else {
+					err = tx.Commit()
 				}
+			} else {
+				_ = tx.Rollback()
 			}
-		}
-		if err == nil {
-			err = tx.Commit()
-		} else {
-			_ = tx.Rollback()
 		}
 	}
 
@@ -135,14 +148,17 @@ func (p posgreSQLPetStore) UpdatePet(id int, name string, race string, mod strin
 	var tx *sql.Tx = nil
 
 	if err = p.verifyPetExists(id); err == nil {
-		if tx, err = p.db.Begin(); err == nil {
+		if tx, err = p.beginTransaction(); err == nil {
 			if r, err = p.txExec(tx, sqlUpdatePet, id, name, race, mod); err == nil {
-				count, err = r.RowsAffected()
-			}
-			if err == nil {
-				err = tx.Commit()
-			} else {
-				_ = tx.Rollback()
+				if count, err = r.RowsAffected(); err == nil {
+					if count == 0 {
+						err = tx.Rollback()
+					} else {
+						err = tx.Commit()
+					}
+				} else {
+					_ = tx.Rollback()
+				}
 			}
 		}
 	}
@@ -159,7 +175,7 @@ func (p *posgreSQLPetStore) openConnection() (*sql.DB, error) {
 		postgreSQLCfg.User,
 		postgreSQLCfg.Password,
 	)
-	return sql.Open(postgreSQLCfg.Driver, connStr)
+	return p.open(postgreSQLCfg.Driver, connStr)
 }
 
 func (p posgreSQLPetStore) checkConnection() error {
@@ -172,41 +188,32 @@ func (p posgreSQLPetStore) createTables() error {
 }
 
 func (p posgreSQLPetStore) exec(query string, args ...interface{}) (sql.Result, error) {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return p.db.Exec(query, args...)
 }
 
 func (p posgreSQLPetStore) txExec(tx *sql.Tx, query string, args ...interface{}) (sql.Result, error) {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return tx.Exec(query, args...)
 }
 
 func (p posgreSQLPetStore) queryRow(query string, args ...interface{}) *sql.Row {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return p.db.QueryRow(query, args...)
 }
 
 func (p posgreSQLPetStore) txQueryRow(tx *sql.Tx, query string, args ...interface{}) *sql.Row {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return tx.QueryRow(query, args...)
 }
 
 func (p posgreSQLPetStore) query(query string, args ...interface{}) (*sql.Rows, error) {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return p.db.Query(query, args...)
 }
 
 func (p *posgreSQLPetStore) Open() error {
+	log.Println("PostgreSQL store opened.")
 	var err error = nil
 
 	if p.db, err = p.openConnection(); err == nil {
@@ -218,14 +225,25 @@ func (p *posgreSQLPetStore) Open() error {
 	return err
 }
 
+func (p posgreSQLPetStore) logEmpty(_ ...interface{}) {
+
+}
+
 func (p posgreSQLPetStore) Close() error {
+	log.Println("PostgreSQL store closed.")
 	return p.db.Close()
 }
 
 func NewPostgresSQLPetStore(cfg config.CfgData) store.PetStore {
 	result := posgreSQLPetStore{
-		cfg: cfg,
-		db:  nil,
+		cfg:    cfg,
+		db:     nil,
+		logger: log.Println,
+		open:   sql.Open,
+	}
+
+	if !cfg.Store.Postgresql.LogQueries {
+		result.logger = result.logEmpty
 	}
 	return &result
 }
