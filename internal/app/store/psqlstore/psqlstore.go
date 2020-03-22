@@ -207,6 +207,7 @@ func (p posgreSQLPetStore) query(query string, args ...interface{}) (*sql.Rows, 
 }
 
 func (p *posgreSQLPetStore) Open() error {
+	log.Println("PostgreSQL store opened.")
 	var err error = nil
 
 	if p.db, err = p.openConnection(); err == nil {
@@ -219,6 +220,7 @@ func (p *posgreSQLPetStore) Open() error {
 }
 
 func (p posgreSQLPetStore) Close() error {
+	log.Println("PostgreSQL store closed.")
 	return p.db.Close()
 }
 
