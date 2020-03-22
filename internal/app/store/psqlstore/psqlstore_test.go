@@ -27,6 +27,7 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"log"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -34,10 +35,11 @@ import (
 )
 
 const (
-	testDataFolder    = "testdata"
-	postgreSQLFile    = "postgresql.json"
-	postgreSQLBadFile = "postgresql-bad.json"
-	sqlResetDB        = "DROP TABLE PETS"
+	testDataFolder              = "testdata"
+	postgreSQLFile              = "postgresql.json"
+	postgreSQLFileWithoutLogger = "postgresql-no-logger.json"
+	postgreSQLBadFile           = "postgresql-bad.json"
+	sqlResetDB                  = "DROP TABLE PETS"
 )
 
 func getPetStore(cfgFile string) *posgreSQLPetStore {
@@ -105,6 +107,27 @@ func TestPSqlPetStore_OpenClose(t *testing.T) {
 		err = ps.Close()
 		if err != nil {
 			t.Fatalf("error on close got %v, want nil", err)
+		}
+	})
+}
+
+func TestPSqlPetStore_Logger(t *testing.T) {
+	defer resetDB()
+	t.Run("should save logs", func(t *testing.T) {
+		ps := getPetStore(postgreSQLFile)
+		got := reflect.ValueOf(ps.logger)
+		want := reflect.ValueOf(log.Println)
+		if got.Pointer() != want.Pointer() {
+			t.Fatalf("error getting logger, got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("should not save logs", func(t *testing.T) {
+		ps := getPetStore(postgreSQLFileWithoutLogger)
+		got := reflect.ValueOf(ps.logger)
+		want := reflect.ValueOf(ps.logEmpty)
+		if got.Pointer() != want.Pointer() {
+			t.Fatalf("error getting logger, got %v, want %v", got, want)
 		}
 	})
 }

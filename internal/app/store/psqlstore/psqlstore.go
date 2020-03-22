@@ -39,8 +39,9 @@ const (
 )
 
 type posgreSQLPetStore struct {
-	cfg config.CfgData
-	db  *sql.DB
+	cfg    config.CfgData
+	db     *sql.DB
+	logger func(v ...interface{})
 }
 
 func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
@@ -172,37 +173,27 @@ func (p posgreSQLPetStore) createTables() error {
 }
 
 func (p posgreSQLPetStore) exec(query string, args ...interface{}) (sql.Result, error) {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return p.db.Exec(query, args...)
 }
 
 func (p posgreSQLPetStore) txExec(tx *sql.Tx, query string, args ...interface{}) (sql.Result, error) {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return tx.Exec(query, args...)
 }
 
 func (p posgreSQLPetStore) queryRow(query string, args ...interface{}) *sql.Row {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return p.db.QueryRow(query, args...)
 }
 
 func (p posgreSQLPetStore) txQueryRow(tx *sql.Tx, query string, args ...interface{}) *sql.Row {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return tx.QueryRow(query, args...)
 }
 
 func (p posgreSQLPetStore) query(query string, args ...interface{}) (*sql.Rows, error) {
-	if p.cfg.Store.Postgresql.LogQueries {
-		log.Println("SQL query:", query, args)
-	}
+	p.logger("SQL query:", query, args)
 	return p.db.Query(query, args...)
 }
 
@@ -219,6 +210,10 @@ func (p *posgreSQLPetStore) Open() error {
 	return err
 }
 
+func (p posgreSQLPetStore) logEmpty(_ ...interface{}) {
+
+}
+
 func (p posgreSQLPetStore) Close() error {
 	log.Println("PostgreSQL store closed.")
 	return p.db.Close()
@@ -226,8 +221,13 @@ func (p posgreSQLPetStore) Close() error {
 
 func NewPostgresSQLPetStore(cfg config.CfgData) store.PetStore {
 	result := posgreSQLPetStore{
-		cfg: cfg,
-		db:  nil,
+		cfg:    cfg,
+		db:     nil,
+		logger: log.Println,
+	}
+
+	if !cfg.Store.Postgresql.LogQueries {
+		result.logger = result.logEmpty
 	}
 	return &result
 }
