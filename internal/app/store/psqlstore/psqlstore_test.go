@@ -23,11 +23,13 @@
 package psqlstore
 
 import (
+	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -319,4 +321,39 @@ func TestPosgreSQLPetStore_GetAllPets(t *testing.T) {
 			t.Fatalf("error getting all pets got %v, want %v", got, want)
 		}
 	})
+}
+
+func TestPosgreSQLPetStore_Concurrency(t *testing.T) {
+	defer resetDB()
+	ps := getDefaultPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	wantedCount := 1000
+	var wg sync.WaitGroup
+	wg.Add(wantedCount)
+	for i := 0; i < wantedCount; i++ {
+		go func(w *sync.WaitGroup) {
+			seqName := fmt.Sprintf("Fluff%d", wantedCount)
+			id, _ := ps.AddPet(seqName, "dog", "happy")
+			_, _ = ps.GetPet(id)
+			newName := fmt.Sprintf("Fluffy%d", wantedCount)
+			_, _ = ps.UpdatePet(id, newName, "dog", "happy")
+			_, _ = ps.GetPet(id)
+			_, _ = ps.GetAllPets()
+			_ = ps.DeletePet(id)
+			_, _ = ps.GetAllPets()
+			w.Done()
+		}(&wg)
+	}
+
+	wg.Wait()
+	pets, _ := ps.GetAllPets()
+	total := len(pets)
+	wantTotal := 0
+
+	if total != wantTotal {
+		t.Fatalf("want %q, got %v", wantTotal, total)
+	}
 }
