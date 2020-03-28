@@ -37,6 +37,7 @@ const (
 	sqlselect    = "SELECT .* FROM pets WHERE .*"
 	sqlselectall = "SELECT .* FROM pets ORDER BY .*"
 	sqlDelete    = "DELETE FROM pets WHERE .*"
+	sqlUpdate    = "UPDATE pets .*"
 )
 
 func initDBMock(t *testing.T) (*posgreSQLPetStore, sqlmock.Sqlmock) {
@@ -80,6 +81,7 @@ func TestMockPosgreSQLPetStore_AddPet_QueryFails(t *testing.T) {
 	errorWanted := fmt.Errorf("error in query")
 	mock.ExpectBegin()
 	mock.ExpectQuery(sqlinsert).WithArgs("name", "race", "mod").WillReturnError(errorWanted)
+	mock.ExpectRollback()
 
 	addPetResponseWithError(ps, t, errorWanted)
 }
@@ -274,6 +276,7 @@ func TestMockPosgreSQLPetStore_DeletePet_QueryFails(t *testing.T) {
 	errorWanted := fmt.Errorf("error in tx query")
 	mock.ExpectBegin()
 	mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnError(errorWanted)
+	mock.ExpectRollback()
 
 	err := ps.DeletePet(1)
 
@@ -312,4 +315,97 @@ func TestMockPosgreSQLPetStore_DeletePet_RollbackFails(t *testing.T) {
 	if err != errorWanted {
 		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
 	}
+}
+
+func updatePetRubAndCheckResponse(ps *posgreSQLPetStore, t *testing.T, errorWanted error, updated bool) {
+	isUpdated, err := ps.UpdatePet(5, "name", "race", "mod")
+
+	if err != errorWanted {
+		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
+	}
+	if isUpdated != updated {
+		t.Fatalf("Update pet is true, expected to be %t", isUpdated)
+	}
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet_PetDoesNotExist(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnError(sql.ErrNoRows)
+
+	updatePetRubAndCheckResponse(ps, t, store.PetNotFound, false)
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet_VerifyPetFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx query")
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnError(errorWanted)
+
+	updatePetRubAndCheckResponse(ps, t, errorWanted, false)
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
+	mock.ExpectCommit()
+
+	updatePetRubAndCheckResponse(ps, t, nil, true)
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet_NoPetChanges(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 0))
+	mock.ExpectCommit()
+
+	updatePetRubAndCheckResponse(ps, t, nil, false)
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet_QueryFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx query")
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlUpdate).WillReturnError(errorWanted)
+	mock.ExpectRollback()
+
+	updatePetRubAndCheckResponse(ps, t, errorWanted, false)
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet_CommitFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx commit")
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 0))
+	mock.ExpectCommit().WillReturnError(errorWanted)
+
+	updatePetRubAndCheckResponse(ps, t, errorWanted, false)
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet_RollbackFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx query")
+	mock.ExpectQuery(sqlselect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlUpdate).WillReturnError(errorWanted)
+	mock.ExpectRollback().WillReturnError(fmt.Errorf("error in tx rollback"))
+
+	updatePetRubAndCheckResponse(ps, t, errorWanted, false)
 }
