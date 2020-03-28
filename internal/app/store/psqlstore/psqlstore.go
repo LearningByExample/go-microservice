@@ -52,9 +52,7 @@ func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, er
 	if tx, err = p.db.Begin(); err == nil {
 		if r := p.txQueryRow(tx, sqlInsertPet, name, race, mod); r != nil {
 			if err = r.Scan(&id); err == nil {
-				if err = tx.Commit(); err != nil {
-					id = 0
-				}
+				err = tx.Commit()
 			} else {
 				_ = tx.Rollback()
 			}

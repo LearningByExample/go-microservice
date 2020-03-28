@@ -32,6 +32,13 @@ import (
 	"testing"
 )
 
+const (
+	sqlinsert    = "INSERT INTO pets .* RETURNING id;"
+	sqlselect    = "SELECT .* FROM pets WHERE .*"
+	sqlselectall = "SELECT .* FROM pets ORDER BY .*"
+	sqlDelete    = "DELETE FROM pets WHERE .*"
+)
+
 func initDBMock(t *testing.T) (*posgreSQLPetStore, sqlmock.Sqlmock) {
 	t.Helper()
 
@@ -48,12 +55,7 @@ func initDBMock(t *testing.T) (*posgreSQLPetStore, sqlmock.Sqlmock) {
 func addPetResponseWithError(ps *posgreSQLPetStore, t *testing.T, errorWanted error) {
 	t.Helper()
 
-	idGot, errorGot := ps.AddPet("name", "race", "mod")
-
-	idWanted := 0
-	if idWanted != idGot {
-		t.Fatalf("error, wanted petid %d, got petid %d", idWanted, idGot)
-	}
+	_, errorGot := ps.AddPet("name", "race", "mod")
 
 	if errorWanted != errorGot {
 		t.Fatalf("error wanted %q, error got %q", errorWanted, errorGot)
@@ -61,7 +63,7 @@ func addPetResponseWithError(ps *posgreSQLPetStore, t *testing.T, errorWanted er
 
 }
 
-func TestPosgreSQLPetStore_AddPet_BeginFails(t *testing.T) {
+func TestMockPosgreSQLPetStore_AddPet_BeginFails(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
@@ -71,37 +73,34 @@ func TestPosgreSQLPetStore_AddPet_BeginFails(t *testing.T) {
 	addPetResponseWithError(ps, t, errorWanted)
 }
 
-func TestPosgreSQLPetStore_AddPet_QueryFails(t *testing.T) {
+func TestMockPosgreSQLPetStore_AddPet_QueryFails(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
 	errorWanted := fmt.Errorf("error in query")
-	sqlinsert := "INSERT INTO pets .* RETURNING id;"
 	mock.ExpectBegin()
 	mock.ExpectQuery(sqlinsert).WithArgs("name", "race", "mod").WillReturnError(errorWanted)
 
 	addPetResponseWithError(ps, t, errorWanted)
 }
 
-func TestPosgreSQLPetStore_AddPet_CommitFails(t *testing.T) {
+func TestMockPosgreSQLPetStore_AddPet_CommitFails(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
 	errorWanted := fmt.Errorf("error in tx commit")
-	sqlinsert := "INSERT INTO pets .* RETURNING id;"
 	mock.ExpectBegin()
-	mock.ExpectQuery(sqlinsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectQuery(sqlinsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(12))
 	mock.ExpectCommit().WillReturnError(errorWanted)
 
 	addPetResponseWithError(ps, t, errorWanted)
 }
 
-func TestPosgreSQLPetStore_AddPet_RollbackFails(t *testing.T) {
+func TestMockPosgreSQLPetStore_AddPet_RollbackFails(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
 	errorWanted := fmt.Errorf("error in tx query")
-	sqlinsert := "INSERT INTO pets .* RETURNING id;"
 	mock.ExpectBegin()
 	mock.ExpectQuery(sqlinsert).WithArgs("name", "race", "mod").WillReturnError(errorWanted)
 	mock.ExpectRollback().WillReturnError(fmt.Errorf("error in tx rollback"))
@@ -109,11 +108,10 @@ func TestPosgreSQLPetStore_AddPet_RollbackFails(t *testing.T) {
 	addPetResponseWithError(ps, t, errorWanted)
 }
 
-func TestPosgreSQLPetStore_AddPet(t *testing.T) {
+func TestMockPosgreSQLPetStore_AddPet(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
-	sqlinsert := "INSERT INTO pets .* RETURNING id;"
 	mock.ExpectBegin()
 	mock.ExpectQuery(sqlinsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
@@ -125,14 +123,13 @@ func TestPosgreSQLPetStore_AddPet(t *testing.T) {
 		t.Fatalf("Wrong pet id, wanted  %d, got  %d", wanted, got)
 	}
 	if err != nil {
-		t.Fatalf("Got an unexpected error %q", err)
+		t.Fatalf("Error should be nil, but got %q", err)
 	}
 }
 
-func getPetResponseWithError(ps *posgreSQLPetStore, t *testing.T, errorWanted error) {
+func getPetRunAndCheckResponse(ps *posgreSQLPetStore, t *testing.T, errorWanted error, petWanted data.Pet) {
 	petGot, errorGot := ps.GetPet(1)
 
-	petWanted := data.Pet{}
 	if !reflect.DeepEqual(petGot, petWanted) {
 		t.Fatalf("error, wanted pet %v, got pet %v", petGot, petWanted)
 	}
@@ -142,29 +139,26 @@ func getPetResponseWithError(ps *posgreSQLPetStore, t *testing.T, errorWanted er
 	}
 }
 
-func TestPosgreSQLPetStore_GetPet_QueryFails(t *testing.T) {
+func TestMockPosgreSQLPetStore_GetPet_QueryFails(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
 	errorWanted := fmt.Errorf("error in tx query")
-	sqlselect := "SELECT id, name, race, mod FROM pets WHERE id = .*"
 	mock.ExpectQuery(sqlselect).WithArgs(1).WillReturnError(errorWanted)
 
-	getPetResponseWithError(ps, t, errorWanted)
+	getPetRunAndCheckResponse(ps, t, errorWanted, data.Pet{})
 }
 
-func TestPosgreSQLPetStore_GetPet_QueryNoRows(t *testing.T) {
+func TestMockPosgreSQLPetStore_GetPet_QueryNoRows(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
-	sqlselect := "SELECT id, name, race, mod FROM pets WHERE id = .*"
 	mock.ExpectQuery(sqlselect).WithArgs(1).WillReturnError(sql.ErrNoRows)
 
-	errorWanted := store.PetNotFound
-	getPetResponseWithError(ps, t, errorWanted)
+	getPetRunAndCheckResponse(ps, t, store.PetNotFound, data.Pet{})
 }
 
-func TestPosgreSQLPetStore_GetPet(t *testing.T) {
+func TestMockPosgreSQLPetStore_GetPet(t *testing.T) {
 	ps, mock := initDBMock(t)
 	defer ps.Close()
 
@@ -175,16 +169,147 @@ func TestPosgreSQLPetStore_GetPet(t *testing.T) {
 		Mod:  "happy",
 	}
 
-	sqlselect := "SELECT id, name, race, mod FROM pets WHERE id = .*"
 	var id int64 = 1
 	rows := mock.NewRows([]string{"id", "name", "race", "mod"}).AddRow(id, wanted.Name, wanted.Race, wanted.Mod)
 	mock.ExpectQuery(sqlselect).WithArgs(1).WillReturnRows(rows)
 
-	got, err := ps.GetPet(1)
-	if !reflect.DeepEqual(got, wanted) {
-		t.Fatalf("error, wanted pet %v, got pet %v", got, wanted)
+	getPetRunAndCheckResponse(ps, t, nil, wanted)
+}
+
+func getAllPetsRunAndCheckResponse(ps *posgreSQLPetStore, t *testing.T, errorWanted error, want int) {
+	pets, err := ps.GetAllPets()
+
+	got := len(pets)
+	if got != want {
+		t.Fatalf("Number of pets incorrect, wanted %d pets, got %d pets", got, want)
 	}
+	if err != errorWanted {
+		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
+	}
+}
+
+func TestMockPosgreSQLPetStore_GetAllPets(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	rows := mock.NewRows([]string{"id", "name", "race", "mod"}).
+		AddRow(1, "name1", "race1", "mod1").
+		AddRow(2, "name2", "race2", "mod2").
+		AddRow(3, "name2", "race3", "mod3")
+	mock.ExpectQuery(sqlselectall).WillReturnRows(rows)
+
+	getAllPetsRunAndCheckResponse(ps, t, nil, 3)
+}
+
+func TestMockPosgreSQLPetStore_GetAllPets_Empty(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	rows := mock.NewRows([]string{"id", "name", "race", "mod"})
+	mock.ExpectQuery(sqlselectall).WillReturnRows(rows)
+
+	getAllPetsRunAndCheckResponse(ps, t, nil, 0)
+}
+
+func TestMockPosgreSQLPetStore_GetAllPets_QueryFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx query")
+	mock.ExpectQuery(sqlselectall).WillReturnError(errorWanted)
+
+	getAllPetsRunAndCheckResponse(ps, t, errorWanted, 0)
+
+}
+
+func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	err := ps.DeletePet(1)
+
 	if err != nil {
-		t.Fatalf("Got an unexpected error %q", err)
+		t.Fatalf("Error wanted , but got %q", err)
+	}
+}
+
+func TestMockPosgreSQLPetStore_DeletePet_NoRowsAffected(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 0))
+	mock.ExpectCommit()
+
+	got := ps.DeletePet(1)
+
+	want := store.PetNotFound
+	if got != want {
+		t.Fatalf("Error wanted %q, but got %q", want, got)
+	}
+}
+
+func TestMockPosgreSQLPetStore_DeletePet_BeginFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx begin")
+	mock.ExpectBegin().WillReturnError(errorWanted)
+
+	err := ps.DeletePet(1)
+
+	if err != errorWanted {
+		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
+	}
+}
+
+func TestMockPosgreSQLPetStore_DeletePet_QueryFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx query")
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnError(errorWanted)
+
+	err := ps.DeletePet(1)
+
+	if err != errorWanted {
+		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
+	}
+}
+
+func TestMockPosgreSQLPetStore_DeletePet_CommitFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx commit")
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit().WillReturnError(errorWanted)
+
+	err := ps.DeletePet(1)
+
+	if err != errorWanted {
+		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
+	}
+}
+
+func TestMockPosgreSQLPetStore_DeletePet_RollbackFails(t *testing.T) {
+	ps, mock := initDBMock(t)
+	defer ps.Close()
+
+	errorWanted := fmt.Errorf("error in tx query")
+	mock.ExpectBegin()
+	mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnError(errorWanted)
+	mock.ExpectRollback().WillReturnError(fmt.Errorf("error in tx rollback"))
+
+	err := ps.DeletePet(1)
+
+	if err != errorWanted {
+		t.Fatalf("Error wanted %q, but got %q", errorWanted, err)
 	}
 }
