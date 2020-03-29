@@ -109,7 +109,7 @@ func (p posgreSQLPetStore) DeletePet(id int) error {
 		}
 		if err == nil {
 			err = tx.Commit()
-		} else {
+		} else if err != store.PetNotFound {
 			_ = tx.Rollback()
 		}
 	}
