@@ -23,23 +23,28 @@
 package psqlstore
 
 import (
+	"database/sql"
 	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	"log"
 	"path/filepath"
 	"reflect"
-	"sync"
 	"testing"
 )
 
 const (
 	testDataFolder              = "testdata"
-	postgreSQLFile              = "postgresql.json"
 	postgreSQLFileWithoutLogger = "postgresql-no-logger.json"
 	postgreSQLBadFile           = "postgresql-bad.json"
-	sqlResetDB                  = "DROP TABLE PETS"
+	sqlInsert                   = "INSERT INTO pets .* RETURNING id;"
+	sqlSelect                   = "SELECT .* FROM pets WHERE .*"
+	sqlSelectAll                = "SELECT .* FROM pets ORDER BY .*"
+	sqlDelete                   = "DELETE FROM pets WHERE .*"
+	sqlUpdate                   = "UPDATE pets .*"
+	mockFile                    = "mock.json"
 )
 
 func getPetStore(cfgFile string) *posgreSQLPetStore {
@@ -47,28 +52,6 @@ func getPetStore(cfgFile string) *posgreSQLPetStore {
 	cfg, _ := config.GetConfig(path)
 	ps := NewPostgresSQLPetStore(cfg).(*posgreSQLPetStore)
 	return ps
-}
-
-func getDefaultPetStore() *posgreSQLPetStore {
-	return getPetStore(postgreSQLFile)
-}
-
-func runTestSQL(sql string) {
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
-
-	_, _ = ps.exec(sql)
-}
-
-func resetDB() {
-	runTestSQL(sqlResetDB)
-}
-
-func TestMain(m *testing.M) {
-	resetDB()
-	m.Run()
 }
 
 func TestNewPostgresSQLPetStore(t *testing.T) {
@@ -80,38 +63,8 @@ func TestNewPostgresSQLPetStore(t *testing.T) {
 	}
 }
 
-func TestPSqlPetStore_OpenClose(t *testing.T) {
-	defer resetDB()
-	t.Run("should work", func(t *testing.T) {
-		ps := getPetStore(postgreSQLFile)
-
-		err := ps.Open()
-		if err != nil {
-			t.Fatalf("error on open got %v, want nil", err)
-		}
-
-		err = ps.Close()
-		if err != nil {
-			t.Fatalf("error on close got %v, want nil", err)
-		}
-	})
-
-	t.Run("should fail", func(t *testing.T) {
-		ps := getPetStore(postgreSQLBadFile)
-
-		err := ps.Open()
-		if err == nil {
-			t.Fatal("error on open got nil, want error")
-		}
-
-		err = ps.Close()
-		if err != nil {
-			t.Fatalf("error on close got %v, want nil", err)
-		}
-	})
-}
-
 func TestPSqlPetStore_Logger(t *testing.T) {
+	resetDB()
 	defer resetDB()
 	t.Run("should save logs", func(t *testing.T) {
 		ps := getPetStore(postgreSQLFile)
@@ -132,251 +85,421 @@ func TestPSqlPetStore_Logger(t *testing.T) {
 	})
 }
 
-func TestPSqlPetStore_AddPet(t *testing.T) {
-	defer resetDB()
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
+func initDBMock(t *testing.T) (*posgreSQLPetStore, sqlmock.Sqlmock) {
+	t.Helper()
 
-	got, err := ps.AddPet("Fluff", "dog", "happy")
-
+	ps := getPetStore(mockFile)
+	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("error on add pet got %v, want nil", err)
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 
-	want := 1
+	ps.db = db
+	return ps, mock
+}
+
+func assertAddPet(ps *posgreSQLPetStore, t *testing.T, want error) {
+	t.Helper()
+
+	_, err := ps.AddPet("name", "race", "mod")
+
+	if want != err {
+		t.Fatalf("error want %q, error got %q", want, err)
+	}
+
+}
+
+func assertGetPet(ps *posgreSQLPetStore, t *testing.T, err error, want data.Pet) {
+	t.Helper()
+	got, gotErr := ps.GetPet(1)
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("error, want pet %v, got pet %v", got, want)
+	}
+
+	if err != gotErr {
+		t.Fatalf("error want %q, error got %q", err, gotErr)
+	}
+}
+
+func assertGetAllPets(ps *posgreSQLPetStore, t *testing.T, err error, want int) {
+	t.Helper()
+	pets, gotErr := ps.GetAllPets()
+
+	got := len(pets)
 	if got != want {
-		t.Fatalf("error inserting pet got %d, want %d", got, want)
+		t.Fatalf("Number of pets incorrect, want %d pets, got %d pets", got, want)
+	}
+	if gotErr != err {
+		t.Fatalf("Error want %q, but got %q", err, gotErr)
 	}
 }
 
-func petEquals(p data.Pet, name string, race string, mod string) bool {
-	return p.Name == name && p.Race == race && p.Mod == mod
-}
+func assertUpdatePet(ps *posgreSQLPetStore, t *testing.T, err error, want bool) {
+	t.Helper()
+	got, gotErr := ps.UpdatePet(5, "name", "race", "mod")
 
-func TestPosgreSQLPetStore_UpdatePet(t *testing.T) {
-	defer resetDB()
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
-
-	_, _ = ps.AddPet("Fluffy", "dog", "happy")
-
-	type TestCase struct {
-		name   string
-		id     int
-		pet    data.Pet
-		change bool
-		err    error
+	if gotErr != err {
+		t.Fatalf("Error want %q, but got %q", err, gotErr)
 	}
 
-	var cases = []TestCase{
-		{
-			name: "no change pet",
-			id:   1,
-			pet: data.Pet{
-				Name: "Fluffy",
-				Race: "dog",
-				Mod:  "happy",
-			},
-			change: false,
-			err:    nil,
-		},
-		{
-			name: "change pet",
-			id:   1,
-			pet: data.Pet{
-				Name: "a",
-				Race: "b",
-				Mod:  "c",
-			},
-			change: true,
-			err:    nil,
-		},
-		{
-			name:   "change not found pet",
-			id:     2,
-			pet:    data.Pet{},
-			change: false,
-			err:    store.PetNotFound,
-		},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ps.UpdatePet(tt.id, tt.pet.Name, tt.pet.Race, tt.pet.Mod)
-			if err != tt.err {
-				t.Fatalf("want err %q, got %q", tt.err, err)
-			}
-
-			if got != tt.change {
-				t.Fatalf("want %v, got %v", tt.change, got)
-			}
-			if tt.change {
-				pet, _ := ps.GetPet(1)
-				if !petEquals(pet, tt.pet.Name, tt.pet.Race, tt.pet.Mod) {
-					t.Fatalf("pet was not update correctly")
-				}
-			}
-		})
-	}
-}
-
-func TestPosgreSQLPetStore_DeletePet(t *testing.T) {
-	defer resetDB()
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
-
-	_, _ = ps.AddPet("Fluffy", "dog", "happy")
-
-	t.Run("we could delete a existing pet", func(t *testing.T) {
-		got := ps.DeletePet(1)
-		if got != nil {
-			t.Fatalf("want nil, got %v", got)
-		}
-	})
-
-	t.Run("we could not find a deleted pet", func(t *testing.T) {
-		_, got := ps.GetPet(1)
-		want := store.PetNotFound
+	if err == nil {
 		if got != want {
-			t.Fatalf("want %v, got %v", want, got)
+			t.Fatalf("Error in update pet, want %t, got %t", want, got)
 		}
-	})
-
-	t.Run("we could not delete a not existing pet", func(t *testing.T) {
-		got := ps.DeletePet(1)
-		want := store.PetNotFound
-		if got != want {
-			t.Fatalf("want %v, got %v", want, got)
-		}
-	})
-
-	_ = ps.Close()
+	}
 }
 
-func TestPSqlPetStore_GetPet(t *testing.T) {
-	defer resetDB()
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
+func TestMockPosgreSQLPetStore_AddPet(t *testing.T) {
+	t.Run("should add correctly", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
 
-	_, _ = ps.AddPet("Fluff", "dog", "happy")
+		mock.ExpectBegin()
+		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectCommit()
 
-	t.Run("we should find the pet", func(t *testing.T) {
-		got, err := ps.GetPet(1)
+		want := 1
+		got, err := ps.AddPet("name", "race", "mod")
 
+		if want != got {
+			t.Fatalf("Wrong pet id, want  %d, got  %d", want, got)
+		}
 		if err != nil {
-			t.Fatalf("error on get pet got %v, want nil", err)
+			t.Fatalf("Error should be nil, but got %q", err)
 		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on tx begin error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx begin")
+		mock.ExpectBegin().WillReturnError(err)
+
+		assertAddPet(ps, t, err)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on query error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in query")
+		mock.ExpectBegin()
+		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnError(err)
+		mock.ExpectRollback()
+
+		assertAddPet(ps, t, err)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on commit error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx commit")
+		mock.ExpectBegin()
+		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(12))
+		mock.ExpectCommit().WillReturnError(err)
+
+		assertAddPet(ps, t, err)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on query error with rollback error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx query")
+		mock.ExpectBegin()
+		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnError(err)
+		mock.ExpectRollback().WillReturnError(fmt.Errorf("error in tx rollback"))
+
+		assertAddPet(ps, t, err)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+}
+
+func TestMockPosgreSQLPetStore_GetPet(t *testing.T) {
+	t.Run("should get row", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
 
 		want := data.Pet{
 			Id:   1,
-			Name: "Fluff",
+			Name: "fuffly",
 			Race: "dog",
 			Mod:  "happy",
 		}
 
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("error getting pet got %v, want %v", got, want)
+		var id int64 = 1
+		rows := mock.NewRows([]string{"id", "name", "race", "mod"}).AddRow(id, want.Name, want.Race, want.Mod)
+		mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnRows(rows)
+
+		assertGetPet(ps, t, nil, want)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
 		}
 	})
 
-	t.Run("we should not find the pet", func(t *testing.T) {
-		_, err := ps.GetPet(2)
+	t.Run("should get no row", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
 
-		if err != store.PetNotFound {
-			t.Fatalf("error getting pet got %q, want not found", err)
-		}
-	})
-}
+		mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnError(sql.ErrNoRows)
 
-func TestPosgreSQLPetStore_GetAllPets(t *testing.T) {
-	defer resetDB()
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
-
-	t.Run("should return empty slice", func(t *testing.T) {
-		got, err := ps.GetAllPets()
-		want := make([]data.Pet, 0)
-
-		if err != nil {
-			t.Fatalf("error on get all pets got %v, want nil", err)
-		}
-
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("error getting all pets got %v, want %v", got, want)
+		assertGetPet(ps, t, store.PetNotFound, data.Pet{})
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
 		}
 	})
 
-	t.Run("should return two pets", func(t *testing.T) {
-		idDog, _ := ps.AddPet("Fluff", "dog", "happy")
-		idCat, _ := ps.AddPet("Lion", "cat", "brave")
+	t.Run("should error on query error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
 
-		got, err := ps.GetAllPets()
-		want := []data.Pet{
-			{
-				Id:   idDog,
-				Name: "Fluff",
-				Race: "dog",
-				Mod:  "happy",
-			},
-			{
-				Id:   idCat,
-				Name: "Lion",
-				Race: "cat",
-				Mod:  "brave",
-			},
-		}
+		err := fmt.Errorf("error in tx query")
+		mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnError(err)
 
-		if err != nil {
-			t.Fatalf("error on get all pets got %v, want nil", err)
-		}
-
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("error getting all pets got %v, want %v", got, want)
+		assertGetPet(ps, t, err, data.Pet{})
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
 		}
 	})
 }
 
-func TestPosgreSQLPetStore_Concurrency(t *testing.T) {
-	defer resetDB()
-	ps := getDefaultPetStore()
-	_ = ps.Open()
-	//noinspection GoUnhandledErrorResult
-	defer ps.Close()
+func TestMockPosgreSQLPetStore_GetAllPets(t *testing.T) {
+	t.Run("should get rows", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
 
-	wantedCount := 1000
-	var wg sync.WaitGroup
-	wg.Add(wantedCount)
-	for i := 0; i < wantedCount; i++ {
-		go func(w *sync.WaitGroup) {
-			seqName := fmt.Sprintf("Fluff%d", wantedCount)
-			id, _ := ps.AddPet(seqName, "dog", "happy")
-			_, _ = ps.GetPet(id)
-			newName := fmt.Sprintf("Fluffy%d", wantedCount)
-			_, _ = ps.UpdatePet(id, newName, "dog", "happy")
-			_, _ = ps.GetPet(id)
-			_, _ = ps.GetAllPets()
-			_ = ps.DeletePet(id)
-			_, _ = ps.GetAllPets()
-			w.Done()
-		}(&wg)
-	}
+		rows := mock.NewRows([]string{"id", "name", "race", "mod"}).
+			AddRow(1, "name1", "race1", "mod1").
+			AddRow(2, "name2", "race2", "mod2").
+			AddRow(3, "name2", "race3", "mod3")
+		mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
 
-	wg.Wait()
-	pets, _ := ps.GetAllPets()
-	total := len(pets)
-	wantTotal := 0
+		assertGetAllPets(ps, t, nil, 3)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
 
-	if total != wantTotal {
-		t.Fatalf("want %q, got %v", wantTotal, total)
-	}
+	t.Run("should get no rows", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		rows := mock.NewRows([]string{"id", "name", "race", "mod"})
+		mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
+
+		assertGetAllPets(ps, t, nil, 0)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on query error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx query")
+		mock.ExpectQuery(sqlSelectAll).WillReturnError(err)
+
+		assertGetAllPets(ps, t, err, 0)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+}
+
+func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
+	t.Run("should delete", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := ps.DeletePet(1)
+
+		if err != nil {
+			t.Fatalf("Error want , but got %q", err)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should not found when delete not existing pet", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 0))
+
+		got := ps.DeletePet(1)
+
+		want := store.PetNotFound
+		if got != want {
+			t.Fatalf("Error want %q, but got %q", want, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on tx begin error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		want := fmt.Errorf("error in tx begin")
+		mock.ExpectBegin().WillReturnError(want)
+
+		got := ps.DeletePet(1)
+
+		if got != want {
+			t.Fatalf("Error want %q, but got %q", want, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on query error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		want := fmt.Errorf("error in tx query")
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnError(want)
+
+		got := ps.DeletePet(1)
+
+		if got != want {
+			t.Fatalf("Error want %q, but got %q", want, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on tx commit error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		want := fmt.Errorf("error in tx commit")
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit().WillReturnError(want)
+
+		got := ps.DeletePet(1)
+
+		if got != want {
+			t.Fatalf("Error want %q, but got %q", want, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+}
+
+func TestMockPosgreSQLPetStore_UpdatePet(t *testing.T) {
+	t.Run("should update", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
+		mock.ExpectCommit()
+
+		assertUpdatePet(ps, t, nil, true)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should not update when no changes", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 0))
+		mock.ExpectRollback()
+
+		assertUpdatePet(ps, t, nil, false)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should not found when pet does not exist", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnError(sql.ErrNoRows)
+
+		assertUpdatePet(ps, t, store.PetNotFound, false)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on verify pet error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx query")
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnError(err)
+
+		assertUpdatePet(ps, t, err, false)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on query error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx query")
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlUpdate).WillReturnError(err)
+
+		assertUpdatePet(ps, t, err, false)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on commit error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error in tx commit")
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
+		mock.ExpectCommit().WillReturnError(err)
+
+		assertUpdatePet(ps, t, err, false)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
 }

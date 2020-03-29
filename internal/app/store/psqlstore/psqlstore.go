@@ -23,6 +23,7 @@
 package psqlstore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -49,14 +50,13 @@ func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, er
 	var err error = nil
 	var tx *sql.Tx = nil
 
-	if tx, err = p.db.Begin(); err == nil {
+	if tx, err = p.beginTransaction(); err == nil {
 		if r := p.txQueryRow(tx, sqlInsertPet, name, race, mod); r != nil {
-			err = r.Scan(&id)
-		}
-		if err == nil {
-			err = tx.Commit()
-		} else {
-			_ = tx.Rollback()
+			if err = r.Scan(&id); err == nil {
+				err = tx.Commit()
+			} else {
+				_ = tx.Rollback()
+			}
 		}
 	}
 
@@ -95,23 +95,31 @@ func (p posgreSQLPetStore) GetAllPets() ([]data.Pet, error) {
 	return pets, err
 }
 
+func (p posgreSQLPetStore) beginTransaction() (*sql.Tx, error) {
+	ops := sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  false,
+	}
+	return p.db.BeginTx(context.Background(), &ops)
+}
+
 func (p posgreSQLPetStore) DeletePet(id int) error {
 	var err error = nil
 	var r sql.Result = nil
 	var count int64 = 0
 	var tx *sql.Tx
-	if tx, err = p.db.Begin(); err == nil {
+	if tx, err = p.beginTransaction(); err == nil {
 		if r, err = p.txExec(tx, sqlDeletePet, id); err == nil {
 			if count, err = r.RowsAffected(); err == nil {
 				if count == 0 {
 					err = store.PetNotFound
+					_ = tx.Rollback()
+				} else {
+					err = tx.Commit()
 				}
+			} else {
+				err = tx.Rollback()
 			}
-		}
-		if err == nil {
-			err = tx.Commit()
-		} else {
-			_ = tx.Rollback()
 		}
 	}
 
@@ -137,14 +145,17 @@ func (p posgreSQLPetStore) UpdatePet(id int, name string, race string, mod strin
 	var tx *sql.Tx = nil
 
 	if err = p.verifyPetExists(id); err == nil {
-		if tx, err = p.db.Begin(); err == nil {
+		if tx, err = p.beginTransaction(); err == nil {
 			if r, err = p.txExec(tx, sqlUpdatePet, id, name, race, mod); err == nil {
-				count, err = r.RowsAffected()
-			}
-			if err == nil {
-				err = tx.Commit()
-			} else {
-				_ = tx.Rollback()
+				if count, err = r.RowsAffected(); err == nil {
+					if count == 0 {
+						err = tx.Rollback()
+					} else {
+						err = tx.Commit()
+					}
+				} else {
+					err = tx.Rollback()
+				}
 			}
 		}
 	}

@@ -19,7 +19,15 @@ For running the tests you should do :
 $ make test
 ```
 
-Some tests requires to have PostgreSQL running with the following details :
+## Running the integration tests
+
+For running the integration tests you should do :
+
+```shell script
+$ make integration
+```
+
+These test requires to have PostgreSQL running with the following details :
 ```text
 Server   : localhost
 Port     : 5432
@@ -39,7 +47,6 @@ To stop the local database you could do  :
 ```shell script
 $ ./scripts/local-db.sh stop
 ```
-
 
 ## Example requests using HTTPie
 
