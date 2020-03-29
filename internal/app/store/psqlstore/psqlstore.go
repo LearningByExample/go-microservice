@@ -51,11 +51,12 @@ func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, er
 
 	if tx, err = p.db.Begin(); err == nil {
 		if r := p.txQueryRow(tx, sqlInsertPet, name, race, mod); r != nil {
-			if err = r.Scan(&id); err == nil {
-				err = tx.Commit()
-			} else {
-				_ = tx.Rollback()
-			}
+			err = r.Scan(&id)
+		}
+		if err == nil {
+			err = tx.Commit()
+		} else {
+			_ = tx.Rollback()
 		}
 	}
 
@@ -109,7 +110,7 @@ func (p posgreSQLPetStore) DeletePet(id int) error {
 		}
 		if err == nil {
 			err = tx.Commit()
-		} else if err != store.PetNotFound {
+		} else {
 			_ = tx.Rollback()
 		}
 	}
