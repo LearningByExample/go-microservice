@@ -118,7 +118,7 @@ func (p posgreSQLPetStore) DeletePet(id int) error {
 					err = tx.Commit()
 				}
 			} else {
-				err = tx.Rollback()
+				_ = tx.Rollback()
 			}
 		}
 	}
@@ -154,7 +154,7 @@ func (p posgreSQLPetStore) UpdatePet(id int, name string, race string, mod strin
 						err = tx.Commit()
 					}
 				} else {
-					err = tx.Rollback()
+					_ = tx.Rollback()
 				}
 			}
 		}
@@ -212,6 +212,7 @@ func (p posgreSQLPetStore) query(query string, args ...interface{}) (*sql.Rows, 
 func (p *posgreSQLPetStore) Open() error {
 	log.Println("PostgreSQL store opened.")
 	var err error = nil
+
 
 	if p.db, err = p.openConnection(); err == nil {
 		if err = p.checkConnection(); err == nil {

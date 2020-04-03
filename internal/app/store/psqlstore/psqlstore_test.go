@@ -130,7 +130,7 @@ func assertGetAllPets(ps *posgreSQLPetStore, t *testing.T, err error, want int) 
 	if got != want {
 		t.Fatalf("Number of pets incorrect, want %d pets, got %d pets", got, want)
 	}
-	if gotErr != err {
+	if !reflect.DeepEqual(gotErr, err) {
 		t.Fatalf("Error want %q, but got %q", err, gotErr)
 	}
 }
@@ -322,6 +322,21 @@ func TestMockPosgreSQLPetStore_GetAllPets(t *testing.T) {
 			t.Errorf("there were unfulfilled expectations: %s", err)
 		}
 	})
+
+	t.Run("should error on scan error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		rows := mock.NewRows([]string{"id", "name", "race", "mod"}).
+			AddRow("35pp", "name1", "race1", "mod1")
+		mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
+
+		err := fmt.Errorf("sql: Scan error on column index 0, name \"id\": converting driver.Value type string (\"35pp\") to a int: invalid syntax")
+		assertGetAllPets(ps, t, err, 0)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
 }
 
 func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
@@ -407,6 +422,44 @@ func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
 
 		got := ps.DeletePet(1)
 
+		if got != want {
+			t.Fatalf("Error want %q, but got %q", want, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on rows affected error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+
+		want := fmt.Errorf("error in rows affected")
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(want))
+		mock.ExpectRollback()
+
+		got := ps.DeletePet(1)
+		if got != want {
+			t.Fatalf("Error want %q, but got %q", want, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("should error on rows affected error and rollback error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+
+		want := fmt.Errorf("error in rows affected")
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(want))
+		mock.ExpectRollback().WillReturnError(fmt.Errorf("error in rollback"))
+
+		got := ps.DeletePet(1)
 		if got != want {
 			t.Fatalf("Error want %q, but got %q", want, got)
 		}
@@ -502,4 +555,21 @@ func TestMockPosgreSQLPetStore_UpdatePet(t *testing.T) {
 			t.Errorf("there were unfulfilled expectations: %s", err)
 		}
 	})
+
+	t.Run("should error on rows affected error", func(t *testing.T) {
+		ps, mock := initDBMock(t)
+		defer ps.Close()
+
+		err := fmt.Errorf("error on tx rows affected")
+		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+		mock.ExpectBegin()
+		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewErrorResult(err))
+		mock.ExpectRollback()
+
+		assertUpdatePet(ps, t, err, false)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
 }
+
