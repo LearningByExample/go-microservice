@@ -24,6 +24,7 @@ package psqlstore
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
@@ -44,6 +45,7 @@ const (
 	sqlSelectAll                = "SELECT .* FROM pets ORDER BY .*"
 	sqlDelete                   = "DELETE FROM pets WHERE .*"
 	sqlUpdate                   = "UPDATE pets .*"
+	mockSqlCreateTable          = "CREATE TABLE .*"
 	mockFile                    = "mock.json"
 )
 
@@ -434,7 +436,6 @@ func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
 		ps, mock := initDBMock(t)
 		defer ps.Close()
 
-
 		want := fmt.Errorf("error in rows affected")
 		mock.ExpectBegin()
 		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(want))
@@ -452,7 +453,6 @@ func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
 	t.Run("should error on rows affected error and rollback error", func(t *testing.T) {
 		ps, mock := initDBMock(t)
 		defer ps.Close()
-
 
 		want := fmt.Errorf("error in rows affected")
 		mock.ExpectBegin()
@@ -573,3 +573,45 @@ func TestMockPosgreSQLPetStore_UpdatePet(t *testing.T) {
 	})
 }
 
+func TestPosgreSQLPetStore_Open(t *testing.T) {
+	t.Run("we should be able to open a connection", func(t *testing.T) {
+		ps := getPetStore(mockFile)
+		var mock sqlmock.Sqlmock
+
+		ps.open = func(driverName, dataSourceName string) (db *sql.DB, err error) {
+			db, mock, err = sqlmock.New(sqlmock.MonitorPingsOption(true))
+
+			if err == nil && mock != nil {
+				mock.ExpectPing()
+				mock.ExpectExec(mockSqlCreateTable).WillReturnResult(sqlmock.NewResult(0, 0))
+			}
+
+			return
+		}
+
+		err := ps.Open()
+
+		if err != nil {
+			t.Fatalf("expect no error got %q", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("there were unfulfilled expectations: %s", err)
+		}
+	})
+
+	t.Run("we should not been able to open a connection", func(t *testing.T) {
+		mockError := errors.New("invalid connection")
+		ps := getPetStore(mockFile)
+
+		ps.open = func(driverName, dataSourceName string) (db *sql.DB, err error) {
+			return nil, mockError
+		}
+
+		err := ps.Open()
+
+		if err != mockError {
+			t.Fatalf("invalid error, got %v, want %v", err, mockError)
+		}
+	})
+}

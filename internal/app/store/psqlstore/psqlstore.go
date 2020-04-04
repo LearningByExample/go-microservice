@@ -39,10 +39,13 @@ const (
 	StoreName        = "postgreSQL"
 )
 
+type conFunc func(driverName, dataSourceName string) (*sql.DB, error)
+
 type posgreSQLPetStore struct {
 	cfg    config.CfgData
 	db     *sql.DB
 	logger func(v ...interface{})
+	open   conFunc
 }
 
 func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
@@ -172,7 +175,7 @@ func (p *posgreSQLPetStore) openConnection() (*sql.DB, error) {
 		postgreSQLCfg.User,
 		postgreSQLCfg.Password,
 	)
-	return sql.Open(postgreSQLCfg.Driver, connStr)
+	return p.open(postgreSQLCfg.Driver, connStr)
 }
 
 func (p posgreSQLPetStore) checkConnection() error {
@@ -213,7 +216,6 @@ func (p *posgreSQLPetStore) Open() error {
 	log.Println("PostgreSQL store opened.")
 	var err error = nil
 
-
 	if p.db, err = p.openConnection(); err == nil {
 		if err = p.checkConnection(); err == nil {
 			err = p.createTables()
@@ -237,6 +239,7 @@ func NewPostgresSQLPetStore(cfg config.CfgData) store.PetStore {
 		cfg:    cfg,
 		db:     nil,
 		logger: log.Println,
+		open:   sql.Open,
 	}
 
 	if !cfg.Store.Postgresql.LogQueries {
