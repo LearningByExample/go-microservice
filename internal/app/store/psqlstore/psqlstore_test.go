@@ -25,7 +25,6 @@ package psqlstore
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/LearningByExample/go-microservice/internal/app/config"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
@@ -47,6 +46,10 @@ const (
 	sqlUpdate                   = "UPDATE pets .*"
 	mockSqlCreateTable          = "CREATE TABLE .*"
 	mockFile                    = "mock.json"
+)
+
+var (
+	mockErr = errors.New("an error has been produced")
 )
 
 func getPetStore(cfgFile string) *posgreSQLPetStore {
@@ -101,514 +104,448 @@ func initDBMock(t *testing.T) (*posgreSQLPetStore, sqlmock.Sqlmock) {
 }
 
 func TestMockPosgreSQLPetStore_AddPet(t *testing.T) {
-	t.Run("should add correctly", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
 
-		mock.ExpectBegin()
-		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
-		mock.ExpectCommit()
+	type testCase struct {
+		name    string
+		prepare func(mock sqlmock.Sqlmock, tt testCase)
+		want    int
+		err     error
+	}
 
-		want := 1
-		got, err := ps.AddPet("name", "race", "mod")
+	var cases = []testCase{
+		{
+			name: "should add correctly",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").
+					WillReturnRows(mock.NewRows([]string{"id"}).AddRow(tt.want))
+				mock.ExpectCommit()
+			},
+			want: 1,
+			err:  nil,
+		},
+		{
+			name: "should error on tx begin error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin().WillReturnError(tt.err)
+			},
+			want: 0,
+			err:  mockErr,
+		},
+		{
+			name: "should error on query error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnError(tt.err)
+				mock.ExpectRollback()
+			},
+			want: 0,
+			err:  mockErr,
+		},
+		{
+			name: "should error on commit error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").
+					WillReturnRows(mock.NewRows([]string{"id"}).AddRow(12))
+				mock.ExpectCommit().WillReturnError(tt.err)
+			},
+			want: 0,
+			err:  mockErr,
+		},
+		{
+			name: "should error on query error with rollback error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").
+					WillReturnError(tt.err)
+				mock.ExpectRollback().WillReturnError(errors.New("error on tx rollback"))
+			},
+			want: 0,
+			err:  mockErr,
+		},
+	}
 
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("error adding pet, want id pet %v, got  %v", got, want)
-		}
-		if err != nil {
-			t.Fatalf("error adding pet want no error, got %q", got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, mock := initDBMock(t)
+			defer ps.Close()
+			tt.prepare(mock, tt)
+			got, err := ps.AddPet("name", "race", "mod")
 
-	t.Run("should error on tx begin error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("error adding pet, got id pet %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(err, tt.err) {
+				t.Fatalf("error adding pet want %q, got %q", tt.err, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unfulfilled expectations: %s", err)
+			}
+			ps.Close()
+		})
+	}
 
-		want := errors.New("error in tx begin")
-		mock.ExpectBegin().WillReturnError(want)
-
-		_, got := ps.AddPet("name", "race", "mod")
-
-		if want != got {
-			t.Fatalf("error adding pet, want error %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on query error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in query")
-		mock.ExpectBegin()
-		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnError(want)
-		mock.ExpectRollback()
-
-		_, got := ps.AddPet("name", "race", "mod")
-
-		if want != got {
-			t.Fatalf("error adding pet, want error %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on commit error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx commit")
-		mock.ExpectBegin()
-		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(12))
-		mock.ExpectCommit().WillReturnError(want)
-
-		_, got := ps.AddPet("name", "race", "mod")
-
-		if want != got {
-			t.Fatalf("error adding pet, want error %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on query error with rollback error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx query")
-		mock.ExpectBegin()
-		mock.ExpectQuery(sqlInsert).WithArgs("name", "race", "mod").WillReturnError(want)
-		mock.ExpectRollback().WillReturnError(fmt.Errorf("error in tx rollback"))
-
-		_, got := ps.AddPet("name", "race", "mod")
-
-		if want != got {
-			t.Fatalf("error adding pet, want error %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
 }
 
 func TestMockPosgreSQLPetStore_GetPet(t *testing.T) {
-	t.Run("should get row", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
+	type testCase struct {
+		name    string
+		prepare func(mock sqlmock.Sqlmock, tt testCase)
+		want    data.Pet
+		err     error
+	}
 
-		want := data.Pet{
-			Id:   1,
-			Name: "fuffly",
-			Race: "dog",
-			Mod:  "happy",
-		}
+	var cases = []testCase{
+		{
+			name: "should get row",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				var id int64 = 1
+				rows := mock.NewRows([]string{"id", "name", "race", "mod"}).AddRow(id, tt.want.Name, tt.want.Race, tt.want.Mod)
+				mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnRows(rows)
+			},
+			want: data.Pet{
+				Id:   1,
+				Name: "fuffly",
+				Race: "dog",
+				Mod:  "happy",
+			},
+			err: nil,
+		},
+		{
+			name: "should get no row",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnError(sql.ErrNoRows)
+			},
+			want: data.Pet{},
+			err:  store.PetNotFound,
+		},
+		{
+			name: "should error on query error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnError(tt.err)
+			},
+			want: data.Pet{},
+			err:  mockErr,
+		},
+	}
 
-		var id int64 = 1
-		rows := mock.NewRows([]string{"id", "name", "race", "mod"}).AddRow(id, want.Name, want.Race, want.Mod)
-		mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnRows(rows)
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, mock := initDBMock(t)
+			defer ps.Close()
+			tt.prepare(mock, tt)
+			got, err := ps.GetPet(1)
 
-		got, err := ps.GetPet(1)
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("error getting pet, want id pet %v, got  %v", got, tt.want)
+			}
+			if err != tt.err {
+				t.Fatalf("error getting pet want %q, got %q", tt.err, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("there were unfulfilled expectations: %s", err)
+			}
+			ps.Close()
+		})
+	}
 
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("error getting pet, want id pet %v, got  %v", got, want)
-		}
-		if err != nil {
-			t.Fatalf("error getting pet want no error, got %q", got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should get no row", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnError(sql.ErrNoRows)
-
-		_, got := ps.GetPet(1)
-
-		want := store.PetNotFound
-		if want != got {
-			t.Fatalf("error getting pet, error want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on query error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx query")
-		mock.ExpectQuery(sqlSelect).WithArgs(1).WillReturnError(want)
-
-		_, got := ps.GetPet(1)
-
-		if want != got {
-			t.Fatalf("error getting pet, error want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
 }
 
 func TestMockPosgreSQLPetStore_GetAllPets(t *testing.T) {
-	t.Run("should get rows", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
+	type testCase struct {
+		name        string
+		prepare     func(mock sqlmock.Sqlmock, tt testCase)
+		want        []data.Pet
+		err         error
+		externalErr bool
+	}
 
-		rows := mock.NewRows([]string{"id", "name", "race", "mod"}).
-			AddRow(1, "name1", "race1", "mod1").
-			AddRow(2, "name2", "race2", "mod2").
-			AddRow(3, "name2", "race3", "mod3")
-		mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
+	var cases = []testCase{
+		{
+			name: "should get rows",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				rows := mock.NewRows([]string{"id", "name", "race", "mod"})
+				for _, pet := range tt.want {
+					rows.AddRow(pet.Id, pet.Name, pet.Race, pet.Mod)
+				}
+				mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
+			},
+			want: []data.Pet{
+				{
+					Id:   1,
+					Name: "name1",
+					Race: "race1",
+					Mod:  "mod1",
+				},
+				{
+					Id:   2,
+					Name: "name2",
+					Race: "race2",
+					Mod:  "mod2",
+				},
+				{
+					Id:   3,
+					Name: "name3",
+					Race: "race3",
+					Mod:  "mod3",
+				},
+			},
+			err:         nil,
+			externalErr: false,
+		},
+		{
+			name: "should get no rows",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelectAll).WillReturnRows(mock.NewRows([]string{"id", "name", "race", "mod"}))
+			},
+			want:        []data.Pet{},
+			err:         nil,
+			externalErr: false,
+		},
+		{
+			name: "should error on query error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelectAll).WillReturnError(tt.err)
+			},
+			want:        []data.Pet{},
+			err:         mockErr,
+			externalErr: false,
+		},
+		{
+			name: "should error on scan error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				rows := mock.NewRows([]string{"id", "name", "race", "mod"}).
+					AddRow("35pp", "name1", "race1", "mod1")
+				mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
+			},
+			want:        nil,
+			err:         mockErr,
+			externalErr: true,
+		},
+	}
 
-		pets, err := ps.GetAllPets()
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, mock := initDBMock(t)
+			defer ps.Close()
+			tt.prepare(mock, tt)
+			got, err := ps.GetAllPets()
 
-		want := 3
-		got := len(pets)
-		if got != want {
-			t.Fatalf("error getting all pets, want %d pets, got %d pets", want, got)
-		}
-		if err != nil {
-			t.Fatalf("error getting all pets, want no error, got %q", err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should get no rows", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		rows := mock.NewRows([]string{"id", "name", "race", "mod"})
-		mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
-
-		_, err := ps.GetAllPets()
-
-		if err != nil {
-			t.Fatalf("error getting all pets, want no error, got %q", err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on query error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		err := errors.New("error in tx query")
-		mock.ExpectQuery(sqlSelectAll).WillReturnError(err)
-
-		_, errGot := ps.GetAllPets()
-
-		if err != errGot {
-			t.Fatalf("error getting all pets, want %q, got %q", err, errGot)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on scan error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		rows := mock.NewRows([]string{"id", "name", "race", "mod"}).
-			AddRow("35pp", "name1", "race1", "mod1")
-		mock.ExpectQuery(sqlSelectAll).WillReturnRows(rows)
-
-		_, err := ps.GetAllPets()
-
-		if err == nil {
-			t.Fatalf("error getting all pets, want error sql on scan, got not error")
-		}
-
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("error getting all pets, got %v pets, want %v pets", got, tt.want)
+			}
+			if tt.externalErr {
+				if err == nil {
+					t.Fatal("error getting all pets, want an error, got nil")
+				}
+			} else {
+				if err != tt.err {
+					t.Fatalf("error getting all pets, want %q, got %q", tt.err, err)
+				}
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("there were unfulfilled expectations: %s", err)
+			}
+		})
+	}
 }
 
 func TestMockPosgreSQLPetStore_DeletePet(t *testing.T) {
-	t.Run("should delete", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
+	type testCase struct {
+		name    string
+		prepare func(mock sqlmock.Sqlmock, tt testCase)
+		err     error
+	}
 
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectCommit()
+	var cases = []testCase{
+		{
+			name: "should delete",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
+			err: nil,
+		},
+		{
+			name: "should not found when delete not existing pet",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 0))
+			},
+			err: store.PetNotFound,
+		},
+		{
+			name: "should error on tx begin error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin().WillReturnError(tt.err)
+			},
+			err: mockErr,
+		},
+		{
+			name: "should error on query error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnError(tt.err)
+			},
+			err: mockErr,
+		},
+		{
+			name: "should error on tx commit error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit().WillReturnError(tt.err)
 
-		got := ps.DeletePet(1)
+			},
+			err: mockErr,
+		},
+		{
+			name: "should error on rows affected error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(tt.err))
+				mock.ExpectRollback()
+			},
+			err: mockErr,
+		},
+		{
+			name: "should error on rows affected error and rollback error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(mockErr))
+				mock.ExpectRollback().WillReturnError(errors.New("error in rollback"))
+			},
+			err: mockErr,
+		},
+	}
 
-		if got != nil {
-			t.Fatalf("Error deleting pet, want no error, got %q", got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, mock := initDBMock(t)
+			defer ps.Close()
+			tt.prepare(mock, tt)
 
-	t.Run("should not found when delete not existing pet", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
+			got := ps.DeletePet(1)
 
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 0))
-
-		got := ps.DeletePet(1)
-
-		want := store.PetNotFound
-		if want != got {
-			t.Fatalf("Error deleting pet, want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on tx begin error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx begin")
-		mock.ExpectBegin().WillReturnError(want)
-
-		got := ps.DeletePet(1)
-
-		if want != got {
-			t.Fatalf("Error deleting pet, want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on query error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := fmt.Errorf("error in tx query")
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnError(want)
-
-		got := ps.DeletePet(1)
-
-		if want != got {
-			t.Fatalf("Error deleting pet, want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on tx commit error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := fmt.Errorf("error in tx commit")
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectCommit().WillReturnError(want)
-
-		got := ps.DeletePet(1)
-
-		if want != got {
-			t.Fatalf("Error deleting pet, want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on rows affected error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := fmt.Errorf("error in rows affected")
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(want))
-		mock.ExpectRollback()
-
-		got := ps.DeletePet(1)
-
-		if want != got {
-			t.Fatalf("Error deleting pet, want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on rows affected error and rollback error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := fmt.Errorf("error in rows affected")
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlDelete).WithArgs(1).WillReturnResult(sqlmock.NewErrorResult(want))
-		mock.ExpectRollback().WillReturnError(fmt.Errorf("error in rollback"))
-
-		got := ps.DeletePet(1)
-
-		if want != got {
-			t.Fatalf("Error deleting pet, want %q, got %q", want, got)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+			if tt.err != got {
+				t.Fatalf("Error deleting pet, got %v, want no error", got)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("there were unfulfilled expectations: %s", err)
+			}
+		})
+	}
 }
 
 func TestMockPosgreSQLPetStore_UpdatePet(t *testing.T) {
-	t.Run("should update", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
+	type testCase struct {
+		name        string
+		prepare     func(mock sqlmock.Sqlmock, tt testCase)
+		want        bool
+		err         error
+		externalErr bool
+	}
 
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
-		mock.ExpectCommit()
+	var cases = []testCase{
+		{
+			name: "should update",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
+				mock.ExpectCommit()
+			},
+			want:        true,
+			err:         nil,
+			externalErr: false,
+		},
+		{
+			name: "should not update when no changes",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 0))
+				mock.ExpectRollback()
+			},
+			want:        false,
+			err:         nil,
+			externalErr: false,
+		},
+		{
+			name: "should not found when pet does not exist",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnError(sql.ErrNoRows)
+			},
+			want:        false,
+			err:         store.PetNotFound,
+			externalErr: false,
+		},
+		{
+			name: "should error on verify pet error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnError(tt.err)
+			},
+			want:        false,
+			err:         mockErr,
+			externalErr: false,
+		},
+		{
+			name: "should error on query error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlUpdate).WillReturnError(mockErr)
+			},
+			want:        false,
+			err:         mockErr,
+			externalErr: false,
+		},
+		{
+			name: "should error on commit error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
+				mock.ExpectCommit().WillReturnError(mockErr)
+			},
+			want:        false,
+			err:         mockErr,
+			externalErr: false,
+		},
+		{
+			name: "should error on rows affected error",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
+				mock.ExpectBegin()
+				mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewErrorResult(tt.err))
+				mock.ExpectRollback()
+			},
+			want:        false,
+			err:         mockErr,
+			externalErr: false,
+		},
+	}
 
-		got, err := ps.UpdatePet(5, "name", "race", "mod")
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, mock := initDBMock(t)
+			defer ps.Close()
+			tt.prepare(mock, tt)
 
-		if got != true {
-			t.Fatalf("error updating pet, want update result %t, got %t", true, got)
-		}
-		if err != nil {
-			t.Fatalf("error updating pet want no error, got %q", err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should not update when no changes", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 0))
-		mock.ExpectRollback()
-
-		got, err := ps.UpdatePet(5, "name", "race", "mod")
-
-		if got != false {
-			t.Fatalf("error updating pet, want update result %t, got %t", false, got)
-		}
-		if err != nil {
-			t.Fatalf("error updating pet want no error, got %q", err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should not found when pet does not exist", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnError(sql.ErrNoRows)
-
-		_, err := ps.UpdatePet(5, "name", "race", "mod")
-
-		want := store.PetNotFound
-		if want != err {
-			t.Fatalf("error updating pet, error want %q, got %q", want, err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on verify pet error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx query")
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnError(want)
-
-		_, err := ps.UpdatePet(5, "name", "race", "mod")
-
-		if want != err {
-			t.Fatalf("error updating pet, error want %q, got %q", want, err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on query error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx query")
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlUpdate).WillReturnError(want)
-
-		_, err := ps.UpdatePet(5, "name", "race", "mod")
-
-		if want != err {
-			t.Fatalf("error updating pet, error want %q, got %q", want, err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on commit error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error in tx commit")
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewResult(5, 1))
-		mock.ExpectCommit().WillReturnError(want)
-
-		_, err := ps.UpdatePet(5, "name", "race", "mod")
-
-		if want != err {
-			t.Fatalf("error updating pet, error want %q, got %q", want, err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
-
-	t.Run("should error on rows affected error", func(t *testing.T) {
-		ps, mock := initDBMock(t)
-		defer ps.Close()
-
-		want := errors.New("error on tx rows affected")
-		mock.ExpectQuery(sqlSelect).WithArgs(5).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1))
-		mock.ExpectBegin()
-		mock.ExpectExec(sqlUpdate).WillReturnResult(sqlmock.NewErrorResult(want))
-		mock.ExpectRollback()
-
-		_, err := ps.UpdatePet(5, "name", "race", "mod")
-
-		if want != err {
-			t.Fatalf("error updating pet, error want %q, got %q", want, err)
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("there were unfulfilled expectations: %s", err)
-		}
-	})
+			got, err := ps.UpdatePet(5, "name", "race", "mod")
+			if err == nil && got != tt.want {
+				t.Fatalf("error updating pet, got %t, want %t", got, tt.want)
+			}
+			if err != tt.err {
+				t.Fatalf("error updating pet, got %v, got %v", err, tt.err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("there were unfulfilled expectations: %s", err)
+			}
+		})
+	}
 }
 
 func TestPosgreSQLPetStore_Open(t *testing.T) {
