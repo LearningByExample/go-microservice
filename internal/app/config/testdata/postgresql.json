@@ -12,7 +12,12 @@
 			"database": "petstest",
 			"user": "usertest",
 			"password": "usertest",
-			"log-queries" : false
+			"log-queries" : false,
+			"pool": {
+				"max-open-conns": 25,
+				"max-idle-conns": 25,
+				"max-time-conns": 300000
+			}
 		}
 	}
 }

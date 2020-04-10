@@ -12,7 +12,12 @@
 			"database": "pets",
 			"user": "petuser",
 			"password": "petpwd",
-			"log-queries" : true
+			"log-queries" : true,
+			"pool": {
+				"max-open-conns": 10,
+				"max-idle-conns": 3,
+				"max-time-conns": 300000
+			}
 		}
 	}
 }

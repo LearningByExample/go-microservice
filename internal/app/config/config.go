@@ -50,20 +50,30 @@ func (cfg StoreCfg) isValid() bool {
 	return cfg.Name != "" && !(cfg.Name == "postgreSQL" && !cfg.Postgresql.isValid())
 }
 
+type PoolConfig struct {
+	MaxOpenConns int `json:"max-open-conns"`
+	MaxIdleConns int `json:"max-idle-conns"`
+	MaxTimeConns int `json:"max-time-conns"`
+}
+
 type PostgreSQLCfg struct {
-	Driver     string `json:"driver"`
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	SSLMode    string `json:"ssl-mode"`
-	Database   string `json:"database"`
-	User       string `json:"user"`
-	Password   string `json:"password"`
-	LogQueries bool   `json:"log-queries"`
+	Driver     string     `json:"driver"`
+	Host       string     `json:"host"`
+	Port       int        `json:"port"`
+	SSLMode    string     `json:"ssl-mode"`
+	Database   string     `json:"database"`
+	User       string     `json:"user"`
+	Password   string     `json:"password"`
+	LogQueries bool       `json:"log-queries"`
+	Pool       PoolConfig `json:"pool"`
 }
 
 func (cfg PostgreSQLCfg) isValid() bool {
 	return cfg.Driver != "" && cfg.Host != "" && cfg.Port != 0 && cfg.SSLMode != "" &&
-		cfg.Database != "" && cfg.User != "" && cfg.Password != ""
+		cfg.Database != "" && cfg.User != "" && cfg.Password != "" && cfg.Pool.isValid()
+}
+func (pool PoolConfig) isValid() bool {
+	return pool.MaxOpenConns != 0 && pool.MaxIdleConns != 0 && pool.MaxTimeConns != 0
 }
 
 type CfgData struct {

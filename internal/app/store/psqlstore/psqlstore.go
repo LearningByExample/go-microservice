@@ -32,6 +32,7 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/store"
 	_ "github.com/lib/pq"
 	"log"
+	"time"
 )
 
 const (
@@ -175,7 +176,13 @@ func (p *posgreSQLPetStore) openConnection() (*sql.DB, error) {
 		postgreSQLCfg.User,
 		postgreSQLCfg.Password,
 	)
-	return p.open(postgreSQLCfg.Driver, connStr)
+	conn, err := p.open(postgreSQLCfg.Driver, connStr)
+	if err != nil && conn != nil {
+		conn.SetMaxOpenConns(postgreSQLCfg.Pool.MaxOpenConns)
+		conn.SetMaxIdleConns(postgreSQLCfg.Pool.MaxIdleConns)
+		conn.SetConnMaxLifetime(time.Duration(postgreSQLCfg.Pool.MaxTimeConns) * time.Millisecond)
+	}
+	return conn, err
 }
 
 func (p posgreSQLPetStore) checkConnection() error {
