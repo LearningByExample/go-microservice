@@ -557,7 +557,7 @@ func TestPosgreSQLPetStore_Open(t *testing.T) {
 			db, mock, err = sqlmock.New(sqlmock.MonitorPingsOption(true))
 
 			if err == nil && mock != nil {
-				mock.ExpectPing()
+				//mock.ExpectPing()
 				mock.ExpectExec(mockSqlCreateTable).WillReturnResult(sqlmock.NewResult(0, 0))
 			}
 
