@@ -1,7 +1,7 @@
 # go-microservice
 An educational project for creating a microservice in go
 
-[![License: Apache2](https://img.shields.io/badge/license-Apache%202-blue.svg)](/LICENSE)
+[![License: Apache2](https://img.shields.io/badge/license-Apache%202-blue.svg)](/LICENSE) [![Build Status](https://travis-ci.org/LearningByExample/go-microservice.svg?branch=master)](https://travis-ci.org/LearningByExample/go-microservice)
 
 ## Running the example
 
