@@ -51,3 +51,5 @@ cpycfg:
 	cp -r config/ $(BUILD_DIR)/config
 run: build
 	./$(BINARY_NAME)
+run-postgresql: build
+	./$(BINARY_NAME) -config $(BUILD_DIR)/config/postgresql.json

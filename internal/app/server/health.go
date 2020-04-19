@@ -61,8 +61,7 @@ func (h healthHandler) isAlive() bool {
 }
 
 func (h healthHandler) isReady() bool {
-	_, err := h.ps.GetAllPets()
-	return err == nil
+	return h.ps.IsReady()
 }
 
 func NewHealthHandler(ps store.PetStore) http.Handler {

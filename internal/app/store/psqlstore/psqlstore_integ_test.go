@@ -89,6 +89,25 @@ func TestPSqlPetStore_OpenClose(t *testing.T) {
 	})
 }
 
+func TestPSqlPetStore_IsReady(t *testing.T) {
+	if testing.Short() {
+		t.Skip(integrationTestSkipped)
+	}
+	resetDB()
+	defer resetDB()
+	ps := getIntegrationPetStore()
+	_ = ps.Open()
+	//noinspection GoUnhandledErrorResult
+	defer ps.Close()
+
+	got := ps.IsReady()
+	want := true
+
+	if got != want {
+		t.Fatalf("error calling is ready got %t, want %t", got, want)
+	}
+}
+
 func TestPSqlPetStore_AddPet(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)

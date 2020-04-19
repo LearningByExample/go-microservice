@@ -5,11 +5,26 @@ An educational project for creating a microservice in go
 
 ## Running the example
 
-For running the example you should do :
+For running the example with the default config (in memory database) you should do :
 
 ```shell script
 $ make run
 ```
+
+For running the example with PostgreSQL database you should do :
+
+```shell script
+$ make run-postgresql
+```
+To run the example with PostgreSQL we require to have it running with the following details :
+```text
+Server   : localhost
+Port     : 5432
+Database : pets
+User     : petuser
+Password : petpwd
+```
+To change these details you need to modify the file build/config/postgresql.json
 
 ## Running the tests
 
@@ -128,4 +143,19 @@ Date: Mon, 09 Mar 2020 08:07:36 GMT
         "race": "Cat"
     }
 ]
+```
+
+### Health checks
+```shell script
+$ http GET :8080/health/readiness
+
+HTTP/1.1 200 OK
+Content-Length: 0
+Date: Sun, 19 Apr 2020 09:16:38 GMT
+
+$ http :8080/health/liveness
+
+HTTP/1.1 200 OK
+Content-Length: 0
+Date: Sun, 19 Apr 2020 09:16:45 GMT
 ```

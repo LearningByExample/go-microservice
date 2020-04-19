@@ -64,8 +64,13 @@ func TestServerRoutes(t *testing.T) {
 			want: http.StatusNotFound,
 		},
 		{
-			name: "must return ok",
+			name: "pet must return ok",
 			path: "/pets/1",
+			want: http.StatusOK,
+		},
+		{
+			name: "health must return ok",
+			path: "/health/readiness",
 			want: http.StatusOK,
 		},
 	}

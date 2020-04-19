@@ -40,6 +40,10 @@ const (
 	StoreName = "in-memory"
 )
 
+func (s *inMemoryPetStore) IsReady() bool {
+	return true
+}
+
 func (s *inMemoryPetStore) DeletePet(id int) error {
 	_, err := s.GetPet(id)
 	if err != nil {

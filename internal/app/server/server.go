@@ -40,6 +40,7 @@ const (
 	rootPath     = "/"
 	petPath      = "/pets"
 	petWithSlash = "/pets/"
+	healthPath   = "/health/"
 )
 
 type Server interface {
@@ -159,9 +160,11 @@ func NewServer(cfg config.CfgData, store store.PetStore) Server {
 	srv.setListening(false)
 
 	petHandler := NewPetHandler(srv.ps)
+	healthHandler := NewHealthHandler(srv.ps)
 	mux.HandleFunc(rootPath, srv.notFound)
 	mux.Handle(petPath, petHandler)
 	mux.Handle(petWithSlash, petHandler)
+	mux.Handle(healthPath, healthHandler)
 
 	return &srv
 }

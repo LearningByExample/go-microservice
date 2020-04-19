@@ -216,6 +216,16 @@ func TestGetPets(t *testing.T) {
 	}
 }
 
+func TestIsReady(t *testing.T) {
+	ps := NewInMemoryPetStore(config.CfgData{})
+	got := ps.IsReady()
+	want := true
+
+	if got != want {
+		t.Fatalf("error in is ready check got %t, want %t", got, want)
+	}
+}
+
 func TestIdGeneration(t *testing.T) {
 	ps := NewInMemoryPetStore(config.CfgData{})
 

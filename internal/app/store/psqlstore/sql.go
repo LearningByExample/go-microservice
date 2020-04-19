@@ -23,6 +23,8 @@
 package psqlstore
 
 const (
+	sqlIsReady = `
+		SELECT 1;`
 	sqlVerifyPetExists = `
 		SELECT
 			id

@@ -28,22 +28,24 @@ import (
 )
 
 type SpyStore struct {
-	DeleteWasCall bool
-	GetWasCall    bool
-	GetAllWasCall bool
-	AddWasCall    bool
-	UpdateWasCall bool
-	OpenWasCall   bool
-	CloseWasCall  bool
-	Id            int
-	PetParameters data.Pet
-	deleteFunc    func(id int) error
-	getFunc       func(id int) (data.Pet, error)
-	getAllFunc    func() ([]data.Pet, error)
-	addFunc       func(name string, race string, mod string) (int, error)
-	updateFunc    func(id int, name string, race string, mod string) (bool, error)
-	openFunc      func() error
-	closeFunc     func() error
+	DeleteWasCall  bool
+	GetWasCall     bool
+	GetAllWasCall  bool
+	AddWasCall     bool
+	UpdateWasCall  bool
+	OpenWasCall    bool
+	CloseWasCall   bool
+	IsReadyWasCall bool
+	Id             int
+	PetParameters  data.Pet
+	deleteFunc     func(id int) error
+	getFunc        func(id int) (data.Pet, error)
+	getAllFunc     func() ([]data.Pet, error)
+	addFunc        func(name string, race string, mod string) (int, error)
+	updateFunc     func(id int, name string, race string, mod string) (bool, error)
+	openFunc       func() error
+	closeFunc      func() error
+	isReadyFunc    func() bool
 }
 
 func (s *SpyStore) Reset() {
@@ -54,6 +56,7 @@ func (s *SpyStore) Reset() {
 	s.UpdateWasCall = false
 	s.OpenWasCall = false
 	s.CloseWasCall = false
+	s.IsReadyWasCall = false
 	s.Id = 0
 	s.PetParameters = data.Pet{
 		Id:   0,
@@ -81,6 +84,9 @@ func (s *SpyStore) Reset() {
 	}
 	s.closeFunc = func() error {
 		return nil
+	}
+	s.isReadyFunc = func() bool {
+		return true
 	}
 }
 
@@ -135,6 +141,11 @@ func (s *SpyStore) Close() error {
 	return s.closeFunc()
 }
 
+func (s *SpyStore) IsReady() bool {
+	s.IsReadyWasCall = true
+	return s.isReadyFunc()
+}
+
 func (s *SpyStore) WhenDeletePet(deleteFunc func(id int) error) {
 	s.deleteFunc = deleteFunc
 }
@@ -161,6 +172,10 @@ func (s *SpyStore) WhenOpen(openFunc func() error) {
 
 func (s *SpyStore) WhenClose(closeFunc func() error) {
 	s.closeFunc = closeFunc
+}
+
+func (s *SpyStore) WhenIsReady(isReadyFunc func() bool) {
+	s.isReadyFunc = isReadyFunc
 }
 
 func NewSpyStore() SpyStore {

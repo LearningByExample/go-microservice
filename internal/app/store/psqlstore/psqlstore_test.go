@@ -103,6 +103,48 @@ func initDBMock(t *testing.T) (*posgreSQLPetStore, sqlmock.Sqlmock) {
 	return ps, mock
 }
 
+func TestMockPosgreSQLPetStore_IsReady(t *testing.T) {
+	type testCase struct {
+		name    string
+		prepare func(mock sqlmock.Sqlmock, tt testCase)
+		want    bool
+	}
+	var cases = []testCase{
+		{
+			name: "should return true",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				rows := mock.NewRows([]string{""}).AddRow(1)
+				mock.ExpectQuery(sqlIsReady).WillReturnRows(rows)
+			},
+			want: true,
+		},
+		{
+			name: "should return false",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				mock.ExpectQuery(sqlIsReady).WillReturnError(mockErr)
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, mock := initDBMock(t)
+			defer ps.Close()
+			tt.prepare(mock, tt)
+			got := ps.IsReady()
+
+			if got != tt.want {
+				t.Fatalf("error getting is ready, want %t, got  %t", got, tt.want)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("there were unfulfilled expectations: %s", err)
+			}
+			ps.Close()
+		})
+	}
+}
+
 func TestMockPosgreSQLPetStore_AddPet(t *testing.T) {
 
 	type testCase struct {

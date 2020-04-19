@@ -23,9 +23,7 @@
 package server
 
 import (
-	"errors"
 	"github.com/LearningByExample/go-microservice/internal/_test"
-	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,18 +45,33 @@ func Test_healthHandler(t *testing.T) {
 	h := NewHealthHandler(&spyStore)
 
 	t.Run("readiness should work", func(t *testing.T) {
+		spyStore.Reset()
+		spyStore.WhenIsReady(func() bool {
+			return true
+		})
 		request := _test.GetRequest(h, readinessUrl)
 
 		assertHealthResponse(t, request, http.StatusOK)
+		got := spyStore.IsReadyWasCall
+		want := true
+		if got != want {
+			t.Fatalf("error in health response got %t, want %t", got, want)
+		}
 	})
 
 	t.Run("readiness should fail", func(t *testing.T) {
-		spyStore.WhenGetAllPets(func() ([]data.Pet, error) {
-			return []data.Pet{}, errors.New("error getting pets")
+		spyStore.Reset()
+		spyStore.WhenIsReady(func() bool {
+			return false
 		})
 		request := _test.GetRequest(h, readinessUrl)
 
 		assertHealthResponse(t, request, http.StatusInternalServerError)
+		got := spyStore.IsReadyWasCall
+		want := true
+		if got != want {
+			t.Fatalf("error in health response got %t, want %t", got, want)
+		}
 	})
 
 	t.Run("liveness should work", func(t *testing.T) {

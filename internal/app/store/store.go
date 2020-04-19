@@ -37,6 +37,7 @@ type PetStore interface {
 	UpdatePet(id int, name string, race string, mod string) (bool, error)
 	Open() error
 	Close() error
+	IsReady() bool
 }
 
 type Provider func(cfg config.CfgData) PetStore

@@ -49,6 +49,15 @@ type posgreSQLPetStore struct {
 	open   conFunc
 }
 
+func (p posgreSQLPetStore) IsReady() bool {
+	var value = 0
+	if r := p.queryRow(sqlIsReady); r != nil {
+		_ = r.Scan(&value)
+	}
+
+	return value == 1
+}
+
 func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
 	var id = 0
 	var err error = nil
