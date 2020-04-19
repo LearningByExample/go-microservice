@@ -30,6 +30,7 @@ import (
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -202,6 +203,10 @@ func (s petHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		rErr = resperr.BadRequest
+	}
+
+	if rErr.Status() != http.StatusOK {
+		log.Printf("Error %v in %s request %q", rErr, r.Method, r.URL.Path)
 	}
 
 	if rErr.Status() != resperr.None.Status() {

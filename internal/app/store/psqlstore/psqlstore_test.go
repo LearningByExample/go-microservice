@@ -107,7 +107,7 @@ func TestMockPosgreSQLPetStore_IsReady(t *testing.T) {
 	type testCase struct {
 		name    string
 		prepare func(mock sqlmock.Sqlmock, tt testCase)
-		want    bool
+		want    error
 	}
 	var cases = []testCase{
 		{
@@ -116,14 +116,22 @@ func TestMockPosgreSQLPetStore_IsReady(t *testing.T) {
 				rows := mock.NewRows([]string{""}).AddRow(1)
 				mock.ExpectQuery(sqlIsReady).WillReturnRows(rows)
 			},
-			want: true,
+			want: nil,
+		},
+		{
+			name: "should return true",
+			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
+				rows := mock.NewRows([]string{""}).AddRow(2)
+				mock.ExpectQuery(sqlIsReady).WillReturnRows(rows)
+			},
+			want: errReady,
 		},
 		{
 			name: "should return false",
 			prepare: func(mock sqlmock.Sqlmock, tt testCase) {
 				mock.ExpectQuery(sqlIsReady).WillReturnError(mockErr)
 			},
-			want: false,
+			want: mockErr,
 		},
 	}
 
@@ -134,13 +142,12 @@ func TestMockPosgreSQLPetStore_IsReady(t *testing.T) {
 			tt.prepare(mock, tt)
 			got := ps.IsReady()
 
-			if got != tt.want {
-				t.Fatalf("error getting is ready, want %t, got  %t", got, tt.want)
+			if !errors.Is(got, tt.want) {
+				t.Fatalf("error getting is ready, want %v, got  %v", got, tt.want)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatalf("there were unfulfilled expectations: %s", err)
 			}
-			ps.Close()
 		})
 	}
 }
@@ -288,7 +295,6 @@ func TestMockPosgreSQLPetStore_GetPet(t *testing.T) {
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatalf("there were unfulfilled expectations: %s", err)
 			}
-			ps.Close()
 		})
 	}
 

@@ -101,10 +101,9 @@ func TestPSqlPetStore_IsReady(t *testing.T) {
 	defer ps.Close()
 
 	got := ps.IsReady()
-	want := true
 
-	if got != want {
-		t.Fatalf("error calling is ready got %t, want %t", got, want)
+	if got != nil {
+		t.Fatalf("error calling is ready got %v, want nil", got)
 	}
 }
 

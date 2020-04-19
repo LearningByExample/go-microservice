@@ -167,7 +167,7 @@ func TestGetAllPetsWithError(t *testing.T) {
 
 	response := _test.GetRequest(handler, "/pets")
 
-	assertResponseError(t, response, resperr.FromError(mockError))
+	_test.AssertResponseError(t, response, resperr.FromError(mockError))
 
 	if spyStore.GetAllWasCall != true {
 		t.Fatalf("get all was not called")
@@ -190,37 +190,6 @@ func TestGetAllPetsWithNoPets(t *testing.T) {
 
 	if spyStore.GetAllWasCall != true {
 		t.Fatalf("get all was not called")
-	}
-}
-
-func assertResponseError(t *testing.T, response *httptest.ResponseRecorder, error resperr.ResponseError) {
-	t.Helper()
-
-	got := response.Code
-	want := error.Status()
-
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-
-	if error.Status() != resperr.None.Status() {
-		decoder := json.NewDecoder(response.Body)
-		gotErrorResponse := resperr.ResponseError{}
-
-		err := decoder.Decode(&gotErrorResponse)
-
-		if err != nil {
-			t.Fatalf("got error, %v", err)
-		}
-
-		if gotErrorResponse.ErrorStr != error.ErrorStr {
-			t.Fatalf("got %q, want %q", gotErrorResponse.ErrorStr, error.ErrorStr)
-		}
-		if len(gotErrorResponse.Message) != 0 {
-			if !reflect.DeepEqual(gotErrorResponse.Message, error.Message) {
-				t.Fatalf("got %v, want %v", gotErrorResponse.Message, error.Message)
-			}
-		}
 	}
 }
 
@@ -343,7 +312,7 @@ func TestPetResponses(t *testing.T) {
 			spyStore.WhenGetPet(funcGet)
 
 			response := _test.GetRequest(handler, tt.path)
-			assertResponseError(t, response, tt.want)
+			_test.AssertResponseError(t, response, tt.want)
 
 			if spyStore.GetWasCall != tt.getShouldBeCalled {
 				t.Fatalf("get was not called")
@@ -361,7 +330,7 @@ func TestPetEmptyPost(t *testing.T) {
 	handler := NewPetHandler(&spyStore)
 
 	response := _test.PostRequest(handler, "/pets", nil)
-	assertResponseError(t, response, resperr.NotBodyProvided)
+	_test.AssertResponseError(t, response, resperr.NotBodyProvided)
 }
 
 func TestPetInvalidMethod(t *testing.T) {
@@ -369,7 +338,7 @@ func TestPetInvalidMethod(t *testing.T) {
 	handler := NewPetHandler(&spyStore)
 
 	response := _test.PatchRequest(handler, "/pets/1", nil)
-	assertResponseError(t, response, resperr.BadRequest)
+	_test.AssertResponseError(t, response, resperr.BadRequest)
 }
 
 func TestPetPostInvalidJson(t *testing.T) {
@@ -377,7 +346,7 @@ func TestPetPostInvalidJson(t *testing.T) {
 	handler := NewPetHandler(&spyStore)
 
 	response := _test.PostRequest(handler, "/pets", "{")
-	assertResponseError(t, response, resperr.InvalidResource)
+	_test.AssertResponseError(t, response, resperr.InvalidResource)
 }
 
 func TestValidPet(t *testing.T) {
@@ -469,7 +438,7 @@ func TestPetPostValidJsonNoPet(t *testing.T) {
 	err := resperr.FromErrorMessage(resperr.InvalidResource, []string{
 		petNameNotEmpty, petRaceNotEmpty, petModNotEmpty,
 	})
-	assertResponseError(t, response, err)
+	_test.AssertResponseError(t, response, err)
 }
 
 func TestPetPost(t *testing.T) {
@@ -535,7 +504,7 @@ func TestPetPostWithError(t *testing.T) {
 
 	response := _test.PostRequest(handler, "/pets", postPet)
 
-	assertResponseError(t, response, resperr.FromError(mockError))
+	_test.AssertResponseError(t, response, resperr.FromError(mockError))
 
 	if spyStore.AddWasCall != true {
 		t.Fatalf("add was not called")
@@ -565,7 +534,7 @@ func TestPetPostWithInvalidUrl(t *testing.T) {
 
 	response := _test.PostRequest(handler, "/pets/zz", postPet)
 
-	assertResponseError(t, response, resperr.InvalidUrl)
+	_test.AssertResponseError(t, response, resperr.InvalidUrl)
 }
 
 func TestDeletePet(t *testing.T) {
@@ -579,7 +548,7 @@ func TestDeletePet(t *testing.T) {
 		})
 
 		response := _test.DeleteRequest(handler, "/pets/2")
-		assertResponseError(t, response, resperr.None)
+		_test.AssertResponseError(t, response, resperr.None)
 
 		if spyStore.DeleteWasCall != true {
 			t.Fatalf("delete was not called")
@@ -600,7 +569,7 @@ func TestDeletePet(t *testing.T) {
 		})
 
 		response := _test.DeleteRequest(handler, "/pets/2")
-		assertResponseError(t, response, resperr.NotFound)
+		_test.AssertResponseError(t, response, resperr.NotFound)
 
 		if spyStore.DeleteWasCall != true {
 			t.Fatalf("delete was not called")
@@ -621,7 +590,7 @@ func TestDeletePet(t *testing.T) {
 		})
 
 		response := _test.DeleteRequest(handler, "/pets/zz")
-		assertResponseError(t, response, resperr.InvalidUrl)
+		_test.AssertResponseError(t, response, resperr.InvalidUrl)
 	})
 }
 
@@ -770,7 +739,7 @@ func TestPetEmptyPut(t *testing.T) {
 	handler := NewPetHandler(&spyStore)
 
 	response := _test.PutRequest(handler, "/pets/1", nil)
-	assertResponseError(t, response, resperr.NotBodyProvided)
+	_test.AssertResponseError(t, response, resperr.NotBodyProvided)
 }
 
 func TestPetPutInvalidJson(t *testing.T) {
@@ -778,5 +747,5 @@ func TestPetPutInvalidJson(t *testing.T) {
 	handler := NewPetHandler(&spyStore)
 
 	response := _test.PutRequest(handler, "/pets/1", "{")
-	assertResponseError(t, response, resperr.InvalidResource)
+	_test.AssertResponseError(t, response, resperr.InvalidResource)
 }

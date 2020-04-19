@@ -23,7 +23,9 @@
 package server
 
 import (
+	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"log"
 	"net/http"
 )
 
@@ -37,30 +39,30 @@ const (
 )
 
 func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	status := http.StatusInternalServerError
+	var rErr = resperr.None
+
 	switch r.URL.Path {
 	case livenessUrl:
-		if h.isAlive() {
-			status = http.StatusOK
-		}
 		break
 	case readinessUrl:
-		if h.isReady() {
-			status = http.StatusOK
+		if err := h.isReady(); err != nil {
+			rErr = resperr.FromError(err)
 		}
 		break
 	default:
-		status = http.StatusNotFound
+		rErr = resperr.NotFound
 	}
 
-	w.WriteHeader(status)
+	if rErr.Status() != http.StatusOK {
+		log.Printf("Error %v in %s request %q", rErr, r.Method, r.URL.Path)
+	}
+
+	if rErr.Status() != resperr.None.Status() {
+		rErr.Write(w)
+	}
 }
 
-func (h healthHandler) isAlive() bool {
-	return true
-}
-
-func (h healthHandler) isReady() bool {
+func (h healthHandler) isReady() error {
 	return h.ps.IsReady()
 }
 

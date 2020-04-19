@@ -24,10 +24,13 @@ package _test
 
 import (
 	"encoding/json"
+	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
+	"testing"
 )
 
 func testRequest(handler http.Handler, url string, method string, i interface{}) *httptest.ResponseRecorder {
@@ -69,4 +72,35 @@ func PatchRequest(handler http.Handler, url string, i interface{}) *httptest.Res
 
 func PutRequest(handler http.Handler, url string, i interface{}) *httptest.ResponseRecorder {
 	return testRequest(handler, url, http.MethodPut, i)
+}
+
+func AssertResponseError(t *testing.T, response *httptest.ResponseRecorder, error resperr.ResponseError) {
+	t.Helper()
+
+	got := response.Code
+	want := error.Status()
+
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	if error.Status() != resperr.None.Status() {
+		decoder := json.NewDecoder(response.Body)
+		gotErrorResponse := resperr.ResponseError{}
+
+		err := decoder.Decode(&gotErrorResponse)
+
+		if err != nil {
+			t.Fatalf("got error, %v", err)
+		}
+
+		if gotErrorResponse.ErrorStr != error.ErrorStr {
+			t.Fatalf("got %q, want %q", gotErrorResponse.ErrorStr, error.ErrorStr)
+		}
+		if len(gotErrorResponse.Message) != 0 {
+			if !reflect.DeepEqual(gotErrorResponse.Message, error.Message) {
+				t.Fatalf("got %v, want %v", gotErrorResponse.Message, error.Message)
+			}
+		}
+	}
 }

@@ -45,7 +45,7 @@ type SpyStore struct {
 	updateFunc     func(id int, name string, race string, mod string) (bool, error)
 	openFunc       func() error
 	closeFunc      func() error
-	isReadyFunc    func() bool
+	isReadyFunc    func() error
 }
 
 func (s *SpyStore) Reset() {
@@ -85,8 +85,8 @@ func (s *SpyStore) Reset() {
 	s.closeFunc = func() error {
 		return nil
 	}
-	s.isReadyFunc = func() bool {
-		return true
+	s.isReadyFunc = func() error {
+		return nil
 	}
 }
 
@@ -141,7 +141,7 @@ func (s *SpyStore) Close() error {
 	return s.closeFunc()
 }
 
-func (s *SpyStore) IsReady() bool {
+func (s *SpyStore) IsReady() error {
 	s.IsReadyWasCall = true
 	return s.isReadyFunc()
 }
@@ -174,7 +174,7 @@ func (s *SpyStore) WhenClose(closeFunc func() error) {
 	s.closeFunc = closeFunc
 }
 
-func (s *SpyStore) WhenIsReady(isReadyFunc func() bool) {
+func (s *SpyStore) WhenIsReady(isReadyFunc func() error) {
 	s.isReadyFunc = isReadyFunc
 }
 

@@ -23,22 +23,15 @@
 package server
 
 import (
+	"errors"
 	"github.com/LearningByExample/go-microservice/internal/_test"
-	"net/http"
-	"net/http/httptest"
+	"github.com/LearningByExample/go-microservice/internal/app/resperr"
 	"testing"
 )
 
-func assertHealthResponse(t *testing.T, response *httptest.ResponseRecorder, status int) {
-	t.Helper()
-
-	got := response.Code
-	want := status
-
-	if got != want {
-		t.Fatalf("error in health response got %v, want %v", got, want)
-	}
-}
+var (
+	mockError = errors.New("mock error")
+)
 
 func Test_healthHandler(t *testing.T) {
 	spyStore := _test.NewSpyStore()
@@ -46,12 +39,12 @@ func Test_healthHandler(t *testing.T) {
 
 	t.Run("readiness should work", func(t *testing.T) {
 		spyStore.Reset()
-		spyStore.WhenIsReady(func() bool {
-			return true
+		spyStore.WhenIsReady(func() error {
+			return nil
 		})
 		request := _test.GetRequest(h, readinessUrl)
 
-		assertHealthResponse(t, request, http.StatusOK)
+		_test.AssertResponseError(t, request, resperr.None)
 		got := spyStore.IsReadyWasCall
 		want := true
 		if got != want {
@@ -61,12 +54,12 @@ func Test_healthHandler(t *testing.T) {
 
 	t.Run("readiness should fail", func(t *testing.T) {
 		spyStore.Reset()
-		spyStore.WhenIsReady(func() bool {
-			return false
+		spyStore.WhenIsReady(func() error {
+			return mockError
 		})
 		request := _test.GetRequest(h, readinessUrl)
 
-		assertHealthResponse(t, request, http.StatusInternalServerError)
+		_test.AssertResponseError(t, request, resperr.FromError(mockError))
 		got := spyStore.IsReadyWasCall
 		want := true
 		if got != want {
@@ -77,13 +70,13 @@ func Test_healthHandler(t *testing.T) {
 	t.Run("liveness should work", func(t *testing.T) {
 		request := _test.GetRequest(h, livenessUrl)
 
-		assertHealthResponse(t, request, http.StatusOK)
+		_test.AssertResponseError(t, request, resperr.None)
 	})
 
 	t.Run("invalid url should fail", func(t *testing.T) {
 		request := _test.GetRequest(h, "/invalid")
 
-		assertHealthResponse(t, request, http.StatusNotFound)
+		_test.AssertResponseError(t, request, resperr.NotFound)
 	})
 
 }

@@ -40,8 +40,8 @@ const (
 	StoreName = "in-memory"
 )
 
-func (s *inMemoryPetStore) IsReady() bool {
-	return true
+func (s *inMemoryPetStore) IsReady() error {
+	return nil
 }
 
 func (s *inMemoryPetStore) DeletePet(id int) error {

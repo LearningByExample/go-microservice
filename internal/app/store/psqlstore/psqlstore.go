@@ -38,6 +38,11 @@ import (
 const (
 	connectionString = "host=%s port=%d sslmode=%s dbname=%s user=%s password=%s"
 	StoreName        = "postgreSQL"
+	errRdyQuery      = "error getting value from readiness query"
+)
+
+var (
+	errReady = errors.New(errRdyQuery)
 )
 
 type conFunc func(driverName, dataSourceName string) (*sql.DB, error)
@@ -49,13 +54,19 @@ type posgreSQLPetStore struct {
 	open   conFunc
 }
 
-func (p posgreSQLPetStore) IsReady() bool {
+func (p posgreSQLPetStore) IsReady() error {
 	var value = 0
+	var err error = nil
+
 	if r := p.queryRow(sqlIsReady); r != nil {
-		_ = r.Scan(&value)
+		if err = r.Scan(&value); err == nil {
+			if value != 1 {
+				err = errReady
+			}
+		}
 	}
 
-	return value == 1
+	return err
 }
 
 func (p posgreSQLPetStore) AddPet(name string, race string, mod string) (int, error) {
