@@ -1,7 +1,11 @@
-FROM golang:1.14.2-buster
+FROM golang:1.14.2-buster AS builder
 
-ADD . ./app
+ADD . /app
+WORKDIR /app
+RUN make build-no-test
 
-WORKDIR ./app
+FROM debian:buster
 
-ENTRYPOINT make run
+COPY --from=builder /app/build /app
+WORKDIR /app
+ENTRYPOINT ./go-microservice

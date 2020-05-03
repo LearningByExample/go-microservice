@@ -35,6 +35,8 @@ default: build
 
 build: clean cpycfg test
 	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
+build-no-test: clean cpycfg
+	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
 test:
 	$(GOTEST) -short -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
 integration:
@@ -56,3 +58,6 @@ run-postgresql: build
 	./$(BINARY_NAME) -config $(BUILD_DIR)/config/postgresql.json
 docker:
 	./$(SCRIPTS_DIR)/docker.sh
+deploy: docker
+	./$(SCRIPTS_DIR)/deploy.sh
+
