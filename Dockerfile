@@ -1,6 +1,7 @@
 FROM golang:1.14.2-buster
 
-ADD build/config config
-ADD build/go-microservice go-microservice
+ADD . ./app
 
-ENTRYPOINT ./go-microservice
+WORKDIR ./app
+
+ENTRYPOINT make run

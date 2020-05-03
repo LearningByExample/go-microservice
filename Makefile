@@ -54,5 +54,5 @@ run: build
 	./$(BINARY_NAME)
 run-postgresql: build
 	./$(BINARY_NAME) -config $(BUILD_DIR)/config/postgresql.json
-docker: build
+docker:
 	./$(SCRIPTS_DIR)/docker.sh
