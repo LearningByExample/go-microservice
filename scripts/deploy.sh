@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright (c) 2020 Learning by Example maintainers.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,41 +20,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-# Go parameters
-GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
-GOTEST=$(GOCMD) test
-GOTOOL=$(GOCMD) tool
-COVERAGE=$(GOTOOL) cover
-GOFORMAT=$(GOCMD) fmt
-GORUN=$(GOCMD) run
-BUILD_DIR=build
-SCRIPTS_DIR=scripts
-BINARY_NAME=$(BUILD_DIR)/go-microservice
-APP_PATH="./internal/app"
-default: build
+set -o errexit
 
-build: clean cpycfg test
-	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
-test:
-	$(GOTEST) -short -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
-integration:
-	$(GOTEST) -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
-coverage: test
-	$(COVERAGE) -html=coverage.out
-clean:
-	$(GOCLEAN) $(APP_PATH)
-	rm -rf $(BUILD_DIR)
-format:
-	$(GOFORMAT) $(APP_PATH)/...
-cpycfg:
-	mkdir $(BUILD_DIR)
-	mkdir $(BUILD_DIR)/config
-	cp config/*.* $(BUILD_DIR)/config/
-run: build
-	./$(BINARY_NAME)
-run-postgresql: build
-	./$(BINARY_NAME) -config $(BUILD_DIR)/config/postgresql.json
-docker: build
-	./$(SCRIPTS_DIR)/docker.sh
+kubectl delete all -lapp=go-microservice
+
+kubectl create -f k8s/deployment.yml
