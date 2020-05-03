@@ -48,7 +48,7 @@ format:
 cpycfg:
 	mkdir $(BUILD_DIR)
 	mkdir $(BUILD_DIR)/config
-	cp -r config/ $(BUILD_DIR)/config
+	cp config/*.* $(BUILD_DIR)/config/
 run: build
 	./$(BINARY_NAME)
 run-postgresql: build
