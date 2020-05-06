@@ -27,6 +27,7 @@ GOTOOL=$(GOCMD) tool
 COVERAGE=$(GOTOOL) cover
 GOFORMAT=$(GOCMD) fmt
 GORUN=$(GOCMD) run
+GOGET=$(GOCMD) get
 BUILD_DIR=build
 SCRIPTS_DIR=scripts
 BINARY_NAME=$(BUILD_DIR)/go-microservice
@@ -61,3 +62,5 @@ docker:
 deploy: docker
 	./$(SCRIPTS_DIR)/deploy.sh
 
+update:
+	$(GOGET) -u all
