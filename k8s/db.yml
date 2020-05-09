@@ -1,0 +1,100 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+    name: go-microservice-db
+    labels:
+        type: local
+        app: go-microservice-db
+        group: go-microservice
+spec:
+    storageClassName: manual
+    capacity:
+        storage: 5Gi
+    accessModes:
+        - ReadWriteMany
+    hostPath:
+        path: "/mnt/data"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+    name: go-microservice-db
+    labels:
+        app: go-microservice-db
+        group: go-microservice
+spec:
+    storageClassName: manual
+    accessModes:
+        - ReadWriteMany
+    resources:
+        requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: postgres-config
+    labels:
+        app: go-microservice-db
+        group: go-microservice
+data:
+    POSTGRES_DB: pets
+    POSTGRES_USER: petuser
+    POSTGRES_PASSWORD: petpwd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    labels:
+        app: go-microservice-db
+        group: go-microservice
+    name: go-microservice-db
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: go-microservice-db
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: go-microservice-db
+                group: go-microservice
+        spec:
+            containers:
+                -   image: postgres
+                    imagePullPolicy: Always
+                    name: go-microservice-db
+                    resources: {}
+                    envFrom:
+                        -   configMapRef:
+                                name: postgres-config
+                    volumeMounts:
+                        -   mountPath: /var/lib/postgresql/data
+                            name: postgredb-vol
+            volumes:
+                -   name: postgredb-vol
+                    persistentVolumeClaim:
+                        claimName: go-microservice-db
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+    creationTimestamp: null
+    labels:
+        app: go-microservice-db
+        group: go-microservice
+    name: go-microservice-db
+spec:
+    ports:
+        -   name: 5432-5432
+            port: 5432
+            protocol: TCP
+            targetPort: 5432
+    selector:
+        app: go-microservice-db
+    type: ClusterIP
+status:
+    loadBalancer: {}

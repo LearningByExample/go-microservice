@@ -22,6 +22,16 @@
 
 set -o errexit
 
-kubectl delete all -lapp=go-microservice
+KUBECMD="kubectl"
+if [ -x "$(command -v microk8s.kubectl)" ]; then
+  KUBECMD="microk8s.kubectl"
+fi
 
+
+kubectl delete all -lgroup=go-microservice
+kubectl delete configmap -lgroup=go-microservice
+kubectl delete pvc -lgroup=go-microservice
+kubectl delete pv -lgroup=go-microservice
+
+kubectl create -f k8s/db.yml
 kubectl create -f k8s/deployment.yml

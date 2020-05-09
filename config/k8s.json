@@ -1,0 +1,23 @@
+{
+	"server": {
+		"port": 8080
+	},
+	"store": {
+		"name": "postgreSQL",
+		"postgresql": {
+			"driver": "postgres",
+			"host": "go-microservice-db.default.svc.cluster.local",
+			"ssl-mode": "disable",
+			"port": 5432,
+			"database": "pets",
+			"user": "petuser",
+			"password": "petpwd",
+			"log-queries" : false,
+			"pool": {
+				"max-open-conns": 10,
+				"max-idle-conns": 3,
+				"max-time-conns": 300000
+			}
+		}
+	}
+}

@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
     labels:
         app: go-microservice
+        group: go-microservice
     name: go-microservice
 spec:
     replicas: 1
@@ -15,12 +16,14 @@ spec:
             creationTimestamp: null
             labels:
                 app: go-microservice
+                group: go-microservice
         spec:
             containers:
                 - image: localhost:32000/go-microservice
                   imagePullPolicy: Always
                   name: go-microservice
                   resources: {}
+                  command: [ "./go-microservice", "-config", "config/k8s.json"]
 status: {}
 ---
 apiVersion: v1
@@ -29,6 +32,7 @@ metadata:
     creationTimestamp: null
     labels:
         app: go-microservice
+        group: go-microservice
     name: go-microservice
 spec:
     ports:
