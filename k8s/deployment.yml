@@ -6,7 +6,7 @@ metadata:
         group: go-microservice
     name: go-microservice
 spec:
-    replicas: 1
+    replicas: 3
     selector:
         matchLabels:
             app: go-microservice
@@ -24,6 +24,19 @@ spec:
                   name: go-microservice
                   resources: {}
                   command: [ "./go-microservice", "-config", "config/k8s.json"]
+                  livenessProbe:
+                      httpGet:
+                          path: /health/liveness
+                          port: 8080
+                      initialDelaySeconds: 3
+                      periodSeconds: 3
+                  readinessProbe:
+                      httpGet:
+                          path: /health/readiness
+                          port: 8080
+                      initialDelaySeconds: 3
+                      periodSeconds: 3
+
 status: {}
 ---
 apiVersion: v1
