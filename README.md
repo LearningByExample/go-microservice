@@ -16,7 +16,7 @@ For running the example with PostgreSQL database you should do :
 ```shell script
 $ make run-postgresql
 ```
-To run the example with PostgreSQL we require to have it running with the following details :
+For running the example with PostgreSQL we require to have it running with the following details :
 ```text
 Server   : localhost
 Port     : 5432
@@ -159,3 +159,11 @@ HTTP/1.1 200 OK
 Content-Length: 0
 Date: Sun, 19 Apr 2020 09:16:45 GMT
 ```
+### Kubernetes deployment
+To deploy this service in a local kubernetes:
+```shell script
+make deploy
+```
+This requires to have a registry running in the same cluster.
+
+When building the docker image you can use the environment variable `LOCAL_REGISTRY` to point to the docker registry.
