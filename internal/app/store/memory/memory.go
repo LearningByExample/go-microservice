@@ -104,12 +104,12 @@ func (s *inMemoryPetStore) UpdatePet(id int, name string, race string, mod strin
 	return change, err
 }
 
-func (s inMemoryPetStore) Open() error {
+func (s *inMemoryPetStore) Open() error {
 	log.Println("In-memory store opened.")
 	return nil
 }
 
-func (s inMemoryPetStore) Close() error {
+func (s *inMemoryPetStore) Close() error {
 	log.Println("In-memory store closed.")
 	return nil
 }

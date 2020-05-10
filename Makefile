@@ -28,6 +28,7 @@ COVERAGE=$(GOTOOL) cover
 GOFORMAT=$(GOCMD) fmt
 GORUN=$(GOCMD) run
 GOGET=$(GOCMD) get
+GOVET=$(GOCMD) vet
 BUILD_DIR=build
 SCRIPTS_DIR=scripts
 BINARY_NAME=$(BUILD_DIR)/go-microservice
@@ -38,9 +39,11 @@ build: clean cpycfg test
 	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
 build-no-test: clean cpycfg
 	$(GOBUILD) -o $(BINARY_NAME) -v $(APP_PATH)
-test:
+vet:
+	$(GOVET) $(APP_PATH)/...
+test: vet
 	$(GOTEST) -short -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
-integration:
+integration: vet
 	$(GOTEST) -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
 coverage: test
 	$(COVERAGE) -html=coverage.out
