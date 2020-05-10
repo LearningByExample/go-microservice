@@ -23,12 +23,18 @@
 package psqlstore
 
 import (
+	"context"
 	"fmt"
 	"github.com/LearningByExample/go-microservice/internal/app/data"
 	"github.com/LearningByExample/go-microservice/internal/app/store"
+	"github.com/docker/go-connections/nat"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"os"
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 const (
@@ -37,12 +43,75 @@ const (
 	integrationTestSkipped = "Integration test are skipped"
 )
 
-func getIntegrationPetStore() *posgreSQLPetStore {
-	return getPetStore(postgreSQLFile)
+var psqlC testcontainers.Container = nil
+var host string
+var port int
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+	code := m.Run()
+	if psqlC != nil {
+		defer psqlC.Terminate(ctx)
+	}
+	os.Exit(code)
 }
 
-func runTestSQL(sql string) {
-	ps := getIntegrationPetStore()
+func getIntegrationPetStore(t *testing.T) *posgreSQLPetStore {
+	t.Helper()
+	if psqlC == nil {
+		var err error = nil
+		if psqlC, host, port, err = createContainer(); err != nil {
+			t.Fatalf("error starting container %v", err)
+		}
+	}
+	ps := getPetStore(postgreSQLFile)
+
+	ps.cfg.Store.Postgresql.Port = port
+	ps.cfg.Store.Postgresql.Host = host
+
+	return ps
+}
+
+func createContainer() (testcontainers.Container, string, int, error) {
+	var err error = nil
+	var container testcontainers.Container = nil
+
+	envs := make(map[string]string)
+	envs["POSTGRES_USER"] = "petuser"
+	envs["POSTGRES_PASSWORD"] = "petpwd"
+	envs["POSTGRES_DB"] = "pets"
+
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		Image:        "postgres",
+		ExposedPorts: []string{"5432/tcp"},
+		WaitingFor: wait.ForLog("database system is ready").
+			WithOccurrence(2).WithStartupTimeout(60 * time.Second).
+			WithPollInterval(5 * time.Second),
+		Env: envs,
+	}
+	container, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+
+	ip := "localhost"
+	port := 5432
+
+	if err == nil {
+		if ip, err = container.Host(ctx); err == nil {
+			var natPort nat.Port
+			if natPort, err = container.MappedPort(ctx, "5432"); err == nil {
+				port = natPort.Int()
+			}
+		}
+	}
+
+	return container, ip, port, err
+}
+
+func runTestSQL(sql string, t *testing.T) {
+	ps := getIntegrationPetStore(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -50,18 +119,17 @@ func runTestSQL(sql string) {
 	_, _ = ps.exec(sql)
 }
 
-func resetDB() {
-	runTestSQL(sqlResetDB)
+func resetDB(t *testing.T) {
+	runTestSQL(sqlResetDB, t)
 }
 
 func TestPSqlPetStore_OpenClose(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
+
 	t.Run("should work", func(t *testing.T) {
-		ps := getPetStore(postgreSQLFile)
+		ps := getIntegrationPetStore(t)
 
 		err := ps.Open()
 		if err != nil {
@@ -93,9 +161,8 @@ func TestPSqlPetStore_IsReady(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -111,9 +178,9 @@ func TestPSqlPetStore_AddPet(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
+	resetDB(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -138,9 +205,9 @@ func TestPosgreSQLPetStore_UpdatePet(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
+	resetDB(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -211,9 +278,9 @@ func TestPosgreSQLPetStore_DeletePet(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
+	resetDB(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -250,9 +317,9 @@ func TestPSqlPetStore_GetPet(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
+	resetDB(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -291,9 +358,9 @@ func TestPosgreSQLPetStore_GetAllPets(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
+	resetDB(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()
@@ -345,9 +412,9 @@ func TestPosgreSQLPetStore_Concurrency(t *testing.T) {
 	if testing.Short() {
 		t.Skip(integrationTestSkipped)
 	}
-	resetDB()
-	defer resetDB()
-	ps := getIntegrationPetStore()
+
+	ps := getIntegrationPetStore(t)
+	resetDB(t)
 	_ = ps.Open()
 	//noinspection GoUnhandledErrorResult
 	defer ps.Close()

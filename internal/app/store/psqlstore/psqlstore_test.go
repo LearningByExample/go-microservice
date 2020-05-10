@@ -69,8 +69,6 @@ func TestNewPostgresSQLPetStore(t *testing.T) {
 }
 
 func TestPSqlPetStore_Logger(t *testing.T) {
-	resetDB()
-	defer resetDB()
 	t.Run("should save logs", func(t *testing.T) {
 		ps := getPetStore(postgreSQLFile)
 		got := reflect.ValueOf(ps.logger)

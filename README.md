@@ -42,26 +42,7 @@ For running the integration tests you should do :
 $ make integration
 ```
 
-These test requires to have PostgreSQL running with the following details :
-```text
-Server   : localhost
-Port     : 5432
-Database : pets
-User     : petuser
-Password : petpwd
-```
-
-If you have [docker](https://www.docker.com/products/docker-desktop) installed you could run a local database with this settings with :
-
-```shell script
-$ ./scripts/local-db.sh start
-```
-
-To stop the local database you could do  :
-
-```shell script
-$ ./scripts/local-db.sh stop
-```
+These test requires to have Docker running.
 
 ## Example requests using HTTPie
 
