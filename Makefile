@@ -45,7 +45,7 @@ test: vet
 	$(GOTEST) -short -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
 integration: vet
 	$(GOTEST) -v -cover -coverprofile=coverage.out -covermode=atomic $(APP_PATH)/...
-coverage: test
+coverage: integration
 	$(COVERAGE) -html=coverage.out
 clean:
 	$(GOCLEAN) $(APP_PATH)
