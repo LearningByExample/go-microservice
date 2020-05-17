@@ -29,6 +29,7 @@ GOFORMAT=$(GOCMD) fmt
 GORUN=$(GOCMD) run
 GOGET=$(GOCMD) get
 GOVET=$(GOCMD) vet
+GOMOD=$(GOCMD) mod
 BUILD_DIR=build
 SCRIPTS_DIR=scripts
 BINARY_NAME=$(BUILD_DIR)/go-microservice
@@ -67,3 +68,4 @@ deploy: docker
 
 update:
 	$(GOGET) -u all
+	$(GOMOD) tidy
